@@ -28,12 +28,17 @@ func runStep(step scriba.Step) tea.Cmd {
 
 func runSteps(steps ...scriba.Step) tea.Cmd {
 	return func() tea.Msg {
-		out := make(stepResults, len(steps))
-		for i, step := range steps {
-			out[i] = stepResultMsg{
+		out := stepResults{}
+		for _, step := range steps {
+			err := step.Func()
+			out = append(out, stepResultMsg{
 				desc: step.Desc,
 				help: step.Help,
-				err:  step.Func(),
+				err:  err,
+			})
+
+			if err != nil {
+				return out
 			}
 		}
 		return out

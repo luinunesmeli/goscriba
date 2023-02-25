@@ -20,10 +20,10 @@ func NewView(gitrepo scriba.GitRepo) View {
 }
 
 func (m View) Init() tea.Cmd {
-	m.gitrepo.GetRepoInfo()
+	//m.gitrepo.GetRepoInfo()
 
 	return runSteps(
-		m.gitrepo.CheckRepoState(),
+		//m.gitrepo.CheckRepoState(),
 		m.gitrepo.CheckoutToDevelop(),
 	)
 }
@@ -60,7 +60,6 @@ func (m View) View() string {
 			s += "👎😬\n"
 			s += fmt.Sprintf("👹 %s\n", step.err.Error())
 			s += fmt.Sprintf("💡 %s\n", step.help)
-			s += fmt.Sprint("Please fix the error first to proceed with the release.")
 		} else {
 			s += "👍😉\n"
 		}

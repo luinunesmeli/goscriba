@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	developBranchName = "develop"
+	developBranchName = "refs/heads/develop"
 )
 
 type GitRepo struct {
@@ -37,16 +37,15 @@ func (g GitRepo) CheckoutToDevelop() Step {
 		Desc: "Checkout to `develop` branch",
 		Help: "Looks like `develop` branch don't exist or is unreachable.",
 		Func: func() error {
-			checkoutOpts := &git.CheckoutOptions{
-				Branch: developBranchName,
-			}
-
 			tree, err := g.repo.Worktree()
 			if err != nil {
 				return err
 			}
 
-			if err := tree.Checkout(checkoutOpts); err != nil {
+			checkoutOpts := &git.CheckoutOptions{
+				Branch: developBranchName,
+			}
+			if err = tree.Checkout(checkoutOpts); err != nil {
 				return err
 			}
 
@@ -58,7 +57,7 @@ func (g GitRepo) CheckoutToDevelop() Step {
 func (g GitRepo) CheckRepoState() Step {
 	return Step{
 		Desc: "Checking if current branch is dirty",
-		Help: "Commit or stash first before creating a release",
+		Help: "Commit or stash first your changes before creating a release",
 		Func: func() error {
 			tree, err := g.repo.Worktree()
 			if err != nil {
@@ -70,8 +69,8 @@ func (g GitRepo) CheckRepoState() Step {
 				return err
 			}
 
-			if treeStatus.IsClean() {
-				return errors.New("current branch is dirty")
+			if !treeStatus.IsClean() {
+				return errors.New("current branch has uncommited changes")
 			}
 
 			return nil
