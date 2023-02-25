@@ -23,7 +23,7 @@ func (m View) Init() tea.Cmd {
 	//m.gitrepo.GetRepoInfo()
 
 	return runSteps(
-		//m.gitrepo.CheckRepoState(),
+		m.gitrepo.CheckRepoState(),
 		m.gitrepo.CheckoutToDevelop(),
 	)
 }
