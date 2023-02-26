@@ -35,7 +35,7 @@ func NewGitRepo() (GitRepo, error) {
 func (g GitRepo) CheckoutToDevelop() Step {
 	return Step{
 		Desc: "Checkout to `develop` branch",
-		Help: "Looks like `develop` branch don't exist or is unreachable.",
+		Help: "Looks like `develop` branch don't exist or some code wasn't commited.",
 		Func: func() error {
 			tree, err := g.repo.Worktree()
 			if err != nil {
