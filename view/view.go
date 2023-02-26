@@ -54,6 +54,7 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.gitrepo.CheckRepoState(),
 				m.gitrepo.CheckoutToDevelop(),
 				m.github.LoadLatestTag(context.Background()),
+				m.gitrepo.PullDevelop(),
 			))
 
 			if m.actualStep.checkError() {
@@ -63,13 +64,13 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.latestTag = m.github.LatestTag
 
 			return m, newStateMsg(chooseTag)
-		//case latestTag:
-		//	m.actualStep = m.actualStep.merge(runSteps(m.github.LoadLatestTag(context.Background())))
-		//	m.latestTag = m.github.LatestTag
-		//	return m, newStateMsg(chooseTag)
-		case updateDevelop:
-			m.actualStep = m.actualStep.merge(runSteps(m.gitrepo.PullDevelop()))
-			return m, nil
+			//case latestTag:
+			//	m.actualStep = m.actualStep.merge(runSteps(m.github.LoadLatestTag(context.Background())))
+			//	m.latestTag = m.github.LatestTag
+			//	return m, newStateMsg(chooseTag)
+			//case updateDevelop:
+			//	m.actualStep = m.actualStep.merge(runSteps(m.gitrepo.PullDevelop()))
+			//	return m, nil
 		}
 
 	case tea.KeyMsg:
