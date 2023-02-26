@@ -2,6 +2,8 @@ package scriba
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/google/go-github/v50/github"
 	"golang.org/x/oauth2"
@@ -17,6 +19,7 @@ func NewGithubRepo(cfg Config, ctx context.Context) GithubRepo {
 		&oauth2.Token{AccessToken: cfg.GithubTokenAPI},
 	)
 	tc := oauth2.NewClient(ctx, ts)
+	tc.Timeout = time.Second * 5
 
 	return GithubRepo{
 		client: github.NewClient(tc),
@@ -33,7 +36,7 @@ func (r *GithubRepo) LoadLatestTag(ctx context.Context) Step {
 				return err, ""
 			}
 			r.LatestTag = rel.GetTagName()
-			return nil, "Found tag!"
+			return nil, fmt.Sprintf("Latest tag is %s!", r.LatestTag)
 		},
 	}
 }

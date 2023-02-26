@@ -3,9 +3,11 @@ package view
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/mritd/bubbles/common"
+	"github.com/mritd/bubbles/prompt"
 	"github.com/mritd/bubbles/selector"
 
 	"github.com/luinunesmeli/goscriba/scriba"
@@ -19,19 +21,28 @@ type View struct {
 	err           error
 	state         state
 	versionList   *selector.Model
+	daysInput     *prompt.Model
 	chosenVersion string
+	chosenDays    int
 }
+
+const (
+	developBranchName = "refs/heads/develop"
+	releaseBranchName = "refs/heads/release/%s"
+)
 
 func NewView(gitrepo scriba.GitRepo, github scriba.GithubRepo) View {
 	return View{
 		gitrepo:     gitrepo,
 		github:      github,
-		versionList: ss(),
+		versionList: newVersionList(),
+		daysInput:   newDaysInput(),
+		chosenDays:  -1,
 	}
 }
 
 func (m View) Init() tea.Cmd {
-	return newStateMsg(boot)
+	return newStateMsg(checkoutRepository)
 }
 
 func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -41,7 +52,12 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if ok {
 				m.chosenVersion = i.Version
 			}
-			return m, newStateMsg(updateDevelop)
+			return m, newStateMsg(setDays)
+		}
+		if m.state == setDays {
+			days := m.daysInput.Value()
+			m.chosenDays, _ = strconv.Atoi(days)
+			return m, newStateMsg(createRelease)
 		}
 	}
 
@@ -49,28 +65,36 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case state:
 		m.state = msg
 		switch msg {
-		case boot:
+		case checkoutRepository:
 			m.actualStep = m.actualStep.merge(runSteps(
 				m.gitrepo.CheckRepoState(),
-				m.gitrepo.CheckoutToDevelop(),
+				m.gitrepo.CheckoutToBranch(developBranchName),
 				m.gitrepo.PullDevelop(),
-				m.github.LoadLatestTag(context.Background()),
 			))
 
 			if m.actualStep.checkError() {
 				return m, tea.Quit
 			}
-
+			return m, newStateMsg(fetchLatestTag)
+		case fetchLatestTag:
+			m.actualStep = m.actualStep.merge(runSteps(
+				m.github.LoadLatestTag(context.Background()),
+			))
+			if m.actualStep.checkError() {
+				return m, tea.Quit
+			}
 			m.latestTag = m.github.LatestTag
-
 			return m, newStateMsg(chooseTag)
-			//case latestTag:
-			//	m.actualStep = m.actualStep.merge(runSteps(m.github.LoadLatestTag(context.Background())))
-			//	m.latestTag = m.github.LatestTag
-			//	return m, newStateMsg(chooseTag)
-			//case updateDevelop:
-			//	m.actualStep = m.actualStep.merge(runSteps(m.gitrepo.PullDevelop()))
-			//	return m, nil
+		case createRelease:
+			m.actualStep = m.actualStep.merge(runSteps(
+				m.gitrepo.CreateRelease(m.chosenVersion),
+				m.gitrepo.CheckoutToBranch(fmt.Sprintf(releaseBranchName, m.chosenVersion)),
+			))
+			if m.actualStep.checkError() {
+				return m, tea.Quit
+			}
+			m.latestTag = m.github.LatestTag
+			return m, tea.Quit
 		}
 
 	case tea.KeyMsg:
@@ -81,7 +105,12 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
-	m.versionList, cmd = m.versionList.Update(msg)
+	if m.state == chooseTag {
+		m.versionList, cmd = m.versionList.Update(msg)
+	}
+	if m.state == setDays {
+		m.daysInput, cmd = m.daysInput.Update(msg)
+	}
 
 	return m, cmd
 }
@@ -105,9 +134,15 @@ func (m View) View() string {
 	if m.state == chooseTag {
 		output += m.versionList.View()
 	}
+	if m.state == setDays {
+		output += m.daysInput.View()
+	}
 
 	if m.chosenVersion != "" {
-		output += fmt.Sprintf("\n%s", m.chosenVersion)
+		output += fmt.Sprintf("\nCreate version: %s | ", m.chosenVersion)
+	}
+	if m.chosenDays >= 0 {
+		output += fmt.Sprintf("Release days: %d\n", m.chosenDays)
 	}
 
 	return output

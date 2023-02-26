@@ -5,10 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-git/go-git/v5"
-)
-
-const (
-	developBranchName = "refs/heads/develop"
+	"github.com/go-git/go-git/v5/plumbing"
 )
 
 type GitRepo struct {
@@ -32,10 +29,10 @@ func NewGitRepo() (GitRepo, error) {
 	}, nil
 }
 
-func (g GitRepo) CheckoutToDevelop() Step {
+func (g GitRepo) CheckoutToBranch(branch string) Step {
 	return Step{
-		Desc: "Checkout to `develop` branch",
-		Help: "Looks like `develop` branch don't exist or some code wasn't commited.",
+		Desc: fmt.Sprintf("Checkout to `%s` branch", branch),
+		Help: fmt.Sprintf("Looks like `%s` branch don't exist or some code wasn't commited.", branch),
 		Func: func() (error, string) {
 			tree, err := g.repo.Worktree()
 			if err != nil {
@@ -43,7 +40,7 @@ func (g GitRepo) CheckoutToDevelop() Step {
 			}
 
 			checkoutOpts := &git.CheckoutOptions{
-				Branch: developBranchName,
+				Branch: plumbing.ReferenceName(branch),
 			}
 			if err = tree.Checkout(checkoutOpts); err != nil {
 				return err, ""
@@ -56,7 +53,7 @@ func (g GitRepo) CheckoutToDevelop() Step {
 
 func (g GitRepo) CheckRepoState() Step {
 	return Step{
-		Desc: "Checking if current branch is dirty",
+		Desc: "Checking if current branch is clear",
 		Help: "Commit or stash first your changes before creating a release",
 		Func: func() (error, string) {
 			tree, err := g.repo.Worktree()
@@ -95,6 +92,28 @@ func (g GitRepo) PullDevelop() Step {
 				return nil, "Already up-to-date! No changes made!"
 			}
 			return err, ""
+		},
+	}
+}
+
+func (g GitRepo) CreateRelease(tag string) Step {
+	return Step{
+		Desc: fmt.Sprintf("Create release/%s", tag),
+		Help: "Couldn't create release!",
+		Func: func() (error, string) {
+			headRef, err := g.repo.Head()
+			if err != nil {
+				return nil, ""
+			}
+
+			branch := fmt.Sprintf("refs/heads/release/%s", tag)
+			ref := plumbing.NewHashReference(plumbing.ReferenceName(branch), headRef.Hash())
+			err = g.repo.Storer.SetReference(ref)
+			if err != nil {
+				return nil, ""
+			}
+
+			return nil, "Branch release created"
 		},
 	}
 }

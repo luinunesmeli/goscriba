@@ -9,10 +9,11 @@ type (
 )
 
 const (
-	boot state = iota + 1
-	latestTag
+	checkoutRepository state = iota + 1
+	fetchLatestTag
 	chooseTag
-	updateDevelop
+	setDays
+	createRelease
 )
 
 func newStateMsg(value state) tea.Cmd {
