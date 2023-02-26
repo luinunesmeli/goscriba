@@ -53,8 +53,8 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.actualStep = m.actualStep.merge(runSteps(
 				m.gitrepo.CheckRepoState(),
 				m.gitrepo.CheckoutToDevelop(),
-				m.github.LoadLatestTag(context.Background()),
 				m.gitrepo.PullDevelop(),
+				m.github.LoadLatestTag(context.Background()),
 			))
 
 			if m.actualStep.checkError() {
