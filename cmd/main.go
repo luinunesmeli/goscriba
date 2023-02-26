@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -11,7 +12,7 @@ import (
 )
 
 func main() {
-	_, err := scriba.LoadConfig()
+	cfg, err := scriba.LoadConfig()
 	if err != nil {
 		handleErr(err)
 	}
@@ -21,7 +22,9 @@ func main() {
 		handleErr(err)
 	}
 
-	p := tea.NewProgram(view.NewView(gitRepo))
+	github := scriba.NewGithubRepo(cfg, context.Background())
+
+	p := tea.NewProgram(view.NewView(gitRepo, github))
 	if _, err = p.Run(); err != nil {
 		handleErr(err)
 	}

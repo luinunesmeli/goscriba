@@ -18,7 +18,7 @@ type GitRepo struct {
 type Step struct {
 	Desc string
 	Help string
-	Func func() error
+	Func func() (error, string)
 }
 
 func NewGitRepo() (GitRepo, error) {
@@ -36,20 +36,20 @@ func (g GitRepo) CheckoutToDevelop() Step {
 	return Step{
 		Desc: "Checkout to `develop` branch",
 		Help: "Looks like `develop` branch don't exist or some code wasn't commited.",
-		Func: func() error {
+		Func: func() (error, string) {
 			tree, err := g.repo.Worktree()
 			if err != nil {
-				return err
+				return err, ""
 			}
 
 			checkoutOpts := &git.CheckoutOptions{
 				Branch: developBranchName,
 			}
 			if err = tree.Checkout(checkoutOpts); err != nil {
-				return err
+				return err, ""
 			}
 
-			return nil
+			return nil, ""
 		},
 	}
 }
@@ -58,49 +58,70 @@ func (g GitRepo) CheckRepoState() Step {
 	return Step{
 		Desc: "Checking if current branch is dirty",
 		Help: "Commit or stash first your changes before creating a release",
-		Func: func() error {
+		Func: func() (error, string) {
 			tree, err := g.repo.Worktree()
 			if err != nil {
-				return err
+				return err, ""
 			}
 
 			treeStatus, err := tree.Status()
 			if err != nil {
-				return err
+				return err, ""
 			}
 
 			if !treeStatus.IsClean() {
-				return errors.New("current branch has uncommited changes")
+				return errors.New("current branch has uncommited changes"), ""
 			}
 
-			return nil
+			return nil, ""
 		},
 	}
 }
 
-func (g GitRepo) CheckChangelog() Step {
+func (g GitRepo) PullDevelop() Step {
 	return Step{
-		Desc: "Looking for changelog file",
-		Help: "Don't worry, if it doesn't exist I will create for you",
-		Func: func() error {
+		Desc: "Pull changes from remote",
+		Help: "Cannot pull changes or there are uncommited changes!",
+		Func: func() (error, string) {
 			tree, err := g.repo.Worktree()
 			if err != nil {
-				return err
+				return err, ""
 			}
 
-			treeStatus, err := tree.Status()
-			if err != nil {
-				return err
-			}
+			opts := git.PullOptions{}
+			err = tree.Pull(&opts)
 
-			if treeStatus.IsClean() {
-				return errors.New("current branch is dirty")
+			if err.Error() == "already up-to-date" {
+				return nil, "Already up-to-date! No changes made!"
 			}
-
-			return nil
+			return err, ""
 		},
 	}
 }
+
+//func (g GitRepo) CheckChangelog() Step {
+//	return Step{
+//		Desc: "Looking for changelog file",
+//		Help: "Don't worry, if it doesn't exist I will create for you",
+//		Func: func() error {
+//			tree, err := g.repo.Worktree()
+//			if err != nil {
+//				return err
+//			}
+//
+//			treeStatus, err := tree.Status()
+//			if err != nil {
+//				return err
+//			}
+//
+//			if treeStatus.IsClean() {
+//				return errors.New("current branch is dirty")
+//			}
+//
+//			return nil
+//		},
+//	}
+//}
 
 func (g GitRepo) GetRepoInfo() {
 	c, _ := g.repo.Config()

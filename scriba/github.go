@@ -8,7 +8,8 @@ import (
 )
 
 type GithubRepo struct {
-	client *github.Client
+	client    *github.Client
+	LatestTag string
 }
 
 func NewGithubRepo(cfg Config, ctx context.Context) GithubRepo {
@@ -22,14 +23,17 @@ func NewGithubRepo(cfg Config, ctx context.Context) GithubRepo {
 	}
 }
 
-func (r GithubRepo) GetLatestRelease(ctx context.Context) Step {
+func (r *GithubRepo) LoadLatestTag(ctx context.Context) Step {
 	return Step{
-		Desc: "Looking for latest release version",
+		Desc: "Loading latest tag",
 		Help: "Couldn't get version. Do you have permission to read this repo?",
-		Func: func() error {
-			//r.client.Repositories.GetLatestRelease(ctx, )
-
-			return nil
+		Func: func() (error, string) {
+			rel, _, err := r.client.Repositories.GetLatestRelease(ctx, "luinunesmeli", "goscriba")
+			if err != nil {
+				return err, ""
+			}
+			r.LatestTag = rel.GetTagName()
+			return nil, "Found tag!"
 		},
 	}
 }
