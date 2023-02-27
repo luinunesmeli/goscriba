@@ -47,17 +47,16 @@ func (r *GithubRepo) GetCommits(ctx context.Context, days int) Step {
 		Help: "Couldn't get commits",
 		Func: func() (error, string) {
 			//sub := time.Now().AddDate(0, 0, days*-1)
-			//opts := &github.CommitsListOptions{
-			//	Since: sub,
-			//}
-			//
-			//commits, _, err := r.client.Repositories.ListCommits(ctx, "luinunesmeli", "goscriba", opts)
-			//if err != nil {
-			//	return err, ""
-			//}
-			//
-			//fmt.Sprintf(commits[0].String())
+			opts := &github.ListOptions{}
 
+			commits, _, err := r.client.Repositories.CompareCommits(
+				ctx, "luinunesmeli", "goscriba", "main", "develop", opts,
+			)
+			if err != nil {
+				return err, ""
+			}
+
+			fmt.Sprintf(commits.String())
 			return nil, ""
 		},
 	}
