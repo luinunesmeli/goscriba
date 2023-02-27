@@ -50,7 +50,7 @@ func (r *GithubRepo) GetCommits(ctx context.Context, days int) Step {
 			opts := &github.ListOptions{}
 
 			commits, _, err := r.client.Repositories.CompareCommits(
-				ctx, "luinunesmeli", "goscriba", "develop", "master", opts,
+				ctx, "luinunesmeli", "goscriba", "main", "develop", opts,
 			)
 			if err != nil {
 				return err, ""
