@@ -3,27 +3,33 @@ package view
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/mritd/bubbles/common"
-	"github.com/mritd/bubbles/prompt"
 	"github.com/mritd/bubbles/selector"
 
 	"github.com/luinunesmeli/goscriba/scriba"
 )
 
-type View struct {
-	gitrepo       scriba.GitRepo
-	github        scriba.GithubRepo
-	actualStep    stepResults
-	latestTag     string
-	err           error
+type (
+	View struct {
+		versionList *selector.Model
+		confirm     *selector.Model
+		gitrepo     scriba.GitRepo
+		github      scriba.GithubRepo
+		session     Session
+		steps       []scriba.Step
+	}
+)
+
+type Session struct {
+	actual        scriba.Step
 	state         state
-	versionList   *selector.Model
-	daysInput     *prompt.Model
 	chosenVersion string
-	chosenDays    int
+	confirm       bool
+	LatestTag     string
+	PullRequests  scriba.PRs
+	output        string
 }
 
 const (
@@ -32,79 +38,94 @@ const (
 )
 
 func NewView(gitrepo scriba.GitRepo, github scriba.GithubRepo) View {
+	ctx := context.Background()
 	return View{
 		gitrepo:     gitrepo,
 		github:      github,
 		versionList: newVersionList(),
-		daysInput:   newDaysInput(),
-		chosenDays:  -1,
+		confirm:     newConfirm(),
+		steps: []scriba.Step{
+			gitrepo.CheckRepoState(),
+			gitrepo.CheckoutToBranch(developBranchName),
+			gitrepo.PullDevelop(),
+			github.LoadLatestTag(ctx),
+			github.GetPullRequests(ctx),
+		},
 	}
 }
 
 func (m View) Init() tea.Cmd {
-	return newStateMsg(checkoutRepository)
+	return newStateMsg(startStep)
 }
 
 func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg == common.DONE {
-		if m.state == chooseTag {
-			i, ok := m.versionList.Selected().(TypeMessage)
-			if ok {
-				m.chosenVersion = i.Version
-			}
-			return m, newStateMsg(setDays)
-		}
-		if m.state == setDays {
-			days := m.daysInput.Value()
-			m.chosenDays, _ = strconv.Atoi(days)
-			return m, newStateMsg(createRelease)
-		}
-	}
-
 	switch msg := msg.(type) {
-	case state:
-		m.state = msg
+	case string:
 		switch msg {
-		case checkoutRepository:
-			m.actualStep = m.actualStep.merge(runSteps(
-			//m.gitrepo.CheckRepoState(),
-			//m.gitrepo.CheckoutToBranch(developBranchName),
-			//m.gitrepo.PullDevelop(),
-			))
+		case common.DONE:
+			if m.session.state == chooseTag {
+				if i, ok := m.versionList.Selected().(TypeMessage); ok {
+					m.session.chosenVersion = i.Version
+				}
+				return m, newStateMsg(confirm)
+			}
+			if m.session.state == confirm {
+				if i, ok := m.confirm.Selected().(ConfirmMessage); ok {
+					m.session.confirm = i.Yes
+				}
+				if !m.session.confirm {
+					return m, tea.Quit
+				}
 
-			if m.actualStep.checkError() {
+				m.steps = []scriba.Step{
+					m.gitrepo.CreateRelease(m.session.chosenVersion),
+					m.gitrepo.CheckoutToBranch(fmt.Sprintf(releaseBranchName, m.session.chosenVersion)),
+				}
+				return m, newStateMsg(startStep)
+			}
+		}
+	case state:
+		m.session.state = msg
+		switch msg {
+		case startStep:
+			if len(m.steps) == 0 {
 				return m, tea.Quit
 			}
-			return m, newStateMsg(fetchLatestTag)
-		case fetchLatestTag:
-			m.actualStep = m.actualStep.merge(runSteps(
-				m.github.LoadLatestTag(context.Background()),
-			))
-			if m.actualStep.checkError() {
+			m.session.actual, m.steps = m.steps[0], m.steps[1:]
+			m.session.output += fmt.Sprintf("🏃%s... ", m.session.actual.Desc)
+
+			return m, newStateMsg(executeStep)
+		case executeStep:
+			result := runStep(m.session.actual)
+			if result.err != nil {
+				m.session.output += fmt.Sprintf("👎💩 (took %f)\n", result.elapsed)
+				m.session.output += fmt.Sprintf("👹%s\n", result.err.Error())
+				m.session.output += fmt.Sprintf("💡%s\n", result.help)
 				return m, tea.Quit
 			}
-			m.latestTag = m.github.LatestTag
-			return m, newStateMsg(chooseTag)
-		case createRelease:
-			m.actualStep = m.actualStep.merge(runSteps(
-				m.gitrepo.CreateRelease(m.chosenVersion),
-				//m.gitrepo.CheckoutToBranch(fmt.Sprintf(releaseBranchName, m.chosenVersion)),
-			))
-			if m.actualStep.checkError() {
-				return m, tea.Quit
+			m.session.output += fmt.Sprintf("🤙🤓 (took %f)\n", result.elapsed)
+
+			if result.ok != "" {
+				m.session.output += fmt.Sprintf("💡%s\n", result.ok)
 			}
-			m.latestTag = m.github.LatestTag
-			return m, newStateMsg(listCommits)
-		case listCommits:
-			m.actualStep = m.actualStep.merge(runSteps(
-				m.github.GetCommits(context.Background(), m.chosenDays),
-			))
-			if m.actualStep.checkError() {
-				return m, tea.Quit
+
+			return m, newStateMsg(nextStep)
+		case nextStep:
+			if m.github.LatestTag != "" {
+				m.session.LatestTag = m.github.LatestTag
+				m.session.PullRequests = m.github.ActualPRs
+
+				fmt.Println(m.github.LatestTag)
+
+				return m, newStateMsg(chooseTag)
 			}
+
+			if len(m.steps) > 0 {
+				return m, newStateMsg(startStep)
+			}
+
 			return m, tea.Quit
 		}
-
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
@@ -113,44 +134,34 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
-	if m.state == chooseTag {
+	if m.session.state == chooseTag {
 		m.versionList, cmd = m.versionList.Update(msg)
 	}
-	if m.state == setDays {
-		m.daysInput, cmd = m.daysInput.Update(msg)
+	if m.session.state == confirm {
+		m.confirm, cmd = m.confirm.Update(msg)
 	}
-
 	return m, cmd
 }
 
 func (m View) View() string {
-	output := ""
-	for _, step := range m.actualStep {
-		output += fmt.Sprintf("🏃%s... ", step.desc)
-		if step.err != nil {
-			output += "👎😬\n"
-			output += fmt.Sprintf("👹%s\n", step.err.Error())
-			output += fmt.Sprintf("💡%s\n", step.help)
-		} else {
-			output += "👍😉\n"
-			if step.ok != "" {
-				output += fmt.Sprintf("💡%s\n", step.ok)
-			}
+	output := m.session.output
+
+	if m.session.state == chooseTag {
+		output += m.versionList.View()
+	}
+
+	if len(m.session.chosenVersion) > 0 {
+		output += fmt.Sprintf("\nRelease Version: %s ", m.session.chosenVersion)
+		output += fmt.Sprintf("\nWill contain the following Pull Requests:\n")
+
+		output += fmt.Sprintf("\n%s\n", scriba.PRFeature)
+		for _, pr := range m.session.PullRequests.Filter(scriba.PRFeature) {
+			output += fmt.Sprintf(" * [#%d %s] %s by %s\n", pr.Number, pr.Ref, pr.Title, pr.Author)
 		}
 	}
 
-	if m.state == chooseTag {
-		output += m.versionList.View()
-	}
-	if m.state == setDays {
-		output += m.daysInput.View()
-	}
-
-	if m.chosenVersion != "" {
-		output += fmt.Sprintf("\nCreate version: %s | ", m.chosenVersion)
-	}
-	if m.chosenDays >= 0 {
-		output += fmt.Sprintf("Release days: %d\n", m.chosenDays)
+	if m.session.state == confirm {
+		output += "\n" + m.confirm.View()
 	}
 
 	return output

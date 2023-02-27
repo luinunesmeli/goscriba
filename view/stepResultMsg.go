@@ -1,49 +1,27 @@
 package view
 
 import (
+	"time"
+
 	"github.com/luinunesmeli/goscriba/scriba"
 )
 
 type stepResultMsg struct {
-	desc string
-	help string
-	err  error
-	ok   string
+	desc    string
+	help    string
+	err     error
+	ok      string
+	elapsed float64
 }
 
-type stepResults []stepResultMsg
-
-func runSteps(steps ...scriba.Step) stepResults {
-	out := stepResults{}
-	for _, step := range steps {
-		err, msg := step.Func()
-		out = append(out, stepResultMsg{
-			desc: step.Desc,
-			help: step.Help,
-			err:  err,
-			ok:   msg,
-		})
-
-		if err != nil {
-			return out
-		}
+func runStep(step scriba.Step) stepResultMsg {
+	t := time.Now()
+	err, msg := step.Func()
+	return stepResultMsg{
+		desc:    step.Desc,
+		help:    step.Help,
+		err:     err,
+		ok:      msg,
+		elapsed: time.Since(t).Seconds(),
 	}
-	return out
-}
-
-func (s stepResults) checkError() bool {
-	for _, step := range s {
-		if step.err != nil {
-			return true
-		}
-	}
-	return false
-}
-
-func (s stepResults) merge(res stepResults) stepResults {
-	merged := s
-	for _, msg := range res {
-		merged = append(merged, msg)
-	}
-	return merged
 }

@@ -9,12 +9,12 @@ type (
 )
 
 const (
-	checkoutRepository state = iota + 1
-	fetchLatestTag
-	chooseTag
-	setDays
+	chooseTag = iota + 1
 	createRelease
-	listCommits
+	confirm
+	startStep
+	executeStep
+	nextStep
 )
 
 func newStateMsg(value state) tea.Cmd {
