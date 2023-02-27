@@ -3,6 +3,8 @@ package scriba
 import (
 	"errors"
 	"fmt"
+	"os/exec"
+	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -18,12 +20,11 @@ type Step struct {
 	Func func() (error, string)
 }
 
-func NewGitRepo() (GitRepo, error) {
-	repo, err := git.PlainOpen("./")
+func NewGitRepo(path string) (GitRepo, error) {
+	repo, err := git.PlainOpen(path)
 	if err != nil {
 		return GitRepo{}, fmt.Errorf("actual directory doesn't contains a git repository: %w", err)
 	}
-
 	return GitRepo{
 		repo: repo,
 	}, nil
@@ -41,11 +42,11 @@ func (g GitRepo) CheckoutToBranch(branch string) Step {
 
 			checkoutOpts := &git.CheckoutOptions{
 				Branch: plumbing.ReferenceName(branch),
+				Keep:   false,
 			}
 			if err = tree.Checkout(checkoutOpts); err != nil {
 				return err, ""
 			}
-
 			return nil, ""
 		},
 	}
@@ -61,16 +62,11 @@ func (g GitRepo) CheckRepoState() Step {
 				return err, ""
 			}
 
-			treeStatus, err := tree.Status()
-			if err != nil {
-				return err, ""
-			}
-
-			if !treeStatus.IsClean() {
+			status, err := gitStatus(tree)
+			if !status.IsClean() {
 				return errors.New("current branch has uncommited changes"), ""
 			}
-
-			return nil, ""
+			return err, ""
 		},
 	}
 }
@@ -118,31 +114,60 @@ func (g GitRepo) CreateRelease(tag string) Step {
 	}
 }
 
-//func (g GitRepo) CheckChangelog() Step {
-//	return Step{
-//		Desc: "Looking for changelog file",
-//		Help: "Don't worry, if it doesn't exist I will create for you",
-//		Func: func() error {
-//			tree, err := g.repo.Worktree()
-//			if err != nil {
-//				return err
-//			}
-//
-//			treeStatus, err := tree.Status()
-//			if err != nil {
-//				return err
-//			}
-//
-//			if treeStatus.IsClean() {
-//				return errors.New("current branch is dirty")
-//			}
-//
-//			return nil
-//		},
-//	}
-//}
+func (g GitRepo) ReleaseExists(tag string) Step {
+	return Step{
+		Desc: fmt.Sprintf("Create release/%s", tag),
+		Help: "Couldn't create release!",
+		Func: func() (error, string) {
+			branchTag := fmt.Sprintf("refs/heads/release/%s", tag)
+			branch, err := g.repo.Branch(branchTag)
+			if err != nil {
+				return nil, ""
+			}
 
-func (g GitRepo) GetRepoInfo() {
+			if branch != nil {
+				return fmt.Errorf("`%s` already exists", branchTag), ""
+			}
+			return nil, ""
+		},
+	}
+}
+
+func (g GitRepo) GetRepoInfo() (string, string) {
 	c, _ := g.repo.Config()
-	fmt.Sprintf(c.User.Name)
+	r := c.Remotes
+
+	parts := strings.Split(r["origin"].URLs[0], "/")
+	return parts[3], strings.TrimSuffix(parts[4], ".git")
+}
+
+func gitStatus(wt *git.Worktree) (git.Status, error) {
+	c := exec.Command("git", "status", "--porcelain", "-z")
+	c.Dir = wt.Filesystem.Root()
+	output, err := c.Output()
+	if err != nil {
+		stat, err := wt.Status()
+		return stat, err
+	}
+
+	lines := strings.Split(string(output), "\000")
+	stat := make(map[string]*git.FileStatus, len(lines))
+	for _, line := range lines {
+		if len(line) == 0 {
+			continue
+		}
+
+		parts := strings.SplitN(strings.TrimLeft(line, " "), " ", 2)
+		if len(parts) == 2 {
+			stat[strings.Trim(parts[1], " ")] = &git.FileStatus{
+				Staging: git.StatusCode([]byte(parts[0])[0]),
+			}
+		} else {
+			// this shouldn't happen
+			stat[strings.Trim(parts[0], " ")] = &git.FileStatus{
+				Staging: git.Unmodified,
+			}
+		}
+	}
+	return stat, err
 }

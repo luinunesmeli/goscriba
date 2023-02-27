@@ -17,7 +17,6 @@ func newVersionList() *selector.Model {
 		Data: []interface{}{
 			TypeMessage{Type: "Patch", Version: "0.0.2"},
 			TypeMessage{Type: "Minor", Version: "0.1.0"},
-			TypeMessage{Type: "Custom", Version: ""},
 		},
 		HeaderFunc: selector.DefaultHeaderFuncWithAppend("Select the type of release:"),
 		SelectedFunc: func(m selector.Model, obj interface{}, gdIndex int) string {
@@ -32,10 +31,7 @@ func newVersionList() *selector.Model {
 			return ""
 		},
 		FinishedFunc: func(s interface{}) string {
-			//return ""
-			t := s.(TypeMessage)
-			msg := fmt.Sprintf("🧑‍🔬Selected version: %s(%s)\n", t.Version, t.Type)
-			return common.FontColor(msg, selector.ColorFinished)
+			return ""
 		},
 	}
 }
