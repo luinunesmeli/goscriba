@@ -40,3 +40,37 @@ func (r *GithubRepo) LoadLatestTag(ctx context.Context) Step {
 		},
 	}
 }
+
+func (r *GithubRepo) GetCommits(ctx context.Context, days int) Step {
+	return Step{
+		Desc: "Get commits",
+		Help: "Couldn't get commits",
+		Func: func() (error, string) {
+			//sub := time.Now().AddDate(0, 0, days*-1)
+			opts := &github.ListOptions{}
+
+			commits, _, err := r.client.Repositories.CompareCommits(
+				ctx, "luinunesmeli", "goscriba", "develop", "master", opts,
+			)
+			if err != nil {
+				return err, ""
+			}
+
+			fmt.Sprintf(commits.String())
+
+			//opts := &github.PullRequestListOptions{
+			//	State: "closed",
+			//	Base:  "develop",
+			//}
+			//
+			//commits, _, err := r.client.PullRequests.List()
+			//if err != nil {
+			//	return err, ""
+			//}
+			//
+			//fmt.Sprintf(commits[0].String())
+
+			return nil, ""
+		},
+	}
+}
