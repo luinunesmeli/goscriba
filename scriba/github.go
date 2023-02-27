@@ -40,25 +40,3 @@ func (r *GithubRepo) LoadLatestTag(ctx context.Context) Step {
 		},
 	}
 }
-
-func (r *GithubRepo) GetCommits(ctx context.Context, days int) Step {
-	return Step{
-		Desc: "Get commits",
-		Help: "Couldn't get commits",
-		Func: func() (error, string) {
-			//sub := time.Now().AddDate(0, 0, days*-1)
-			//opts := &github.CommitsListOptions{
-			//	Since: sub,
-			//}
-			//
-			//commits, _, err := r.client.Repositories.ListCommits(ctx, "luinunesmeli", "goscriba", opts)
-			//if err != nil {
-			//	return err, ""
-			//}
-			//
-			//fmt.Sprintf(commits[0].String())
-
-			return nil, ""
-		},
-	}
-}
