@@ -57,19 +57,6 @@ func (r *GithubRepo) GetCommits(ctx context.Context, days int) Step {
 			}
 
 			fmt.Sprintf(commits.String())
-
-			//opts := &github.PullRequestListOptions{
-			//	State: "closed",
-			//	Base:  "develop",
-			//}
-			//
-			//commits, _, err := r.client.PullRequests.List()
-			//if err != nil {
-			//	return err, ""
-			//}
-			//
-			//fmt.Sprintf(commits[0].String())
-
 			return nil, ""
 		},
 	}
