@@ -5,10 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-git/go-git/v5"
-)
-
-const (
-	developBranchName = "develop"
+	"github.com/go-git/go-git/v5/plumbing"
 )
 
 type GitRepo struct {
@@ -18,7 +15,7 @@ type GitRepo struct {
 type Step struct {
 	Desc string
 	Help string
-	Func func() error
+	Func func() (error, string)
 }
 
 func NewGitRepo() (GitRepo, error) {
@@ -32,76 +29,118 @@ func NewGitRepo() (GitRepo, error) {
 	}, nil
 }
 
-func (g GitRepo) CheckoutToDevelop() Step {
+func (g GitRepo) CheckoutToBranch(branch string) Step {
 	return Step{
-		Desc: "Checkout to `develop` branch",
-		Help: "Looks like `develop` branch don't exist or is unreachable.",
-		Func: func() error {
-			checkoutOpts := &git.CheckoutOptions{
-				Branch: developBranchName,
-			}
-
+		Desc: fmt.Sprintf("Checkout to `%s` branch", branch),
+		Help: fmt.Sprintf("Looks like `%s` branch don't exist or some code wasn't commited.", branch),
+		Func: func() (error, string) {
 			tree, err := g.repo.Worktree()
 			if err != nil {
-				return err
+				return err, ""
 			}
 
-			if err := tree.Checkout(checkoutOpts); err != nil {
-				return err
+			checkoutOpts := &git.CheckoutOptions{
+				Branch: plumbing.ReferenceName(branch),
+			}
+			if err = tree.Checkout(checkoutOpts); err != nil {
+				return err, ""
 			}
 
-			return nil
+			return nil, ""
 		},
 	}
 }
 
 func (g GitRepo) CheckRepoState() Step {
 	return Step{
-		Desc: "Checking if current branch is dirty",
-		Help: "Commit or stash first before creating a release",
-		Func: func() error {
+		Desc: "Checking if current branch is clear",
+		Help: "Commit or stash first your changes before creating a release",
+		Func: func() (error, string) {
 			tree, err := g.repo.Worktree()
 			if err != nil {
-				return err
+				return err, ""
 			}
 
 			treeStatus, err := tree.Status()
 			if err != nil {
-				return err
+				return err, ""
 			}
 
-			if treeStatus.IsClean() {
-				return errors.New("current branch is dirty")
+			if !treeStatus.IsClean() {
+				return errors.New("current branch has uncommited changes"), ""
 			}
 
-			return nil
+			return nil, ""
 		},
 	}
 }
 
-func (g GitRepo) CheckChangelog() Step {
+func (g GitRepo) PullDevelop() Step {
 	return Step{
-		Desc: "Looking for changelog file",
-		Help: "Don't worry, if it doesn't exist I will create for you",
-		Func: func() error {
+		Desc: "Pull changes from remote",
+		Help: "Cannot pull changes or there are uncommited changes!",
+		Func: func() (error, string) {
 			tree, err := g.repo.Worktree()
 			if err != nil {
-				return err
+				return err, ""
 			}
 
-			treeStatus, err := tree.Status()
-			if err != nil {
-				return err
-			}
+			opts := git.PullOptions{}
+			err = tree.Pull(&opts)
 
-			if treeStatus.IsClean() {
-				return errors.New("current branch is dirty")
+			if err.Error() == "already up-to-date" {
+				return nil, "Already up-to-date! No changes made!"
 			}
-
-			return nil
+			return err, ""
 		},
 	}
 }
+
+func (g GitRepo) CreateRelease(tag string) Step {
+	return Step{
+		Desc: fmt.Sprintf("Create release/%s", tag),
+		Help: "Couldn't create release!",
+		Func: func() (error, string) {
+			headRef, err := g.repo.Head()
+			if err != nil {
+				return nil, ""
+			}
+
+			branch := fmt.Sprintf("refs/heads/release/%s", tag)
+			ref := plumbing.NewHashReference(plumbing.ReferenceName(branch), headRef.Hash())
+			err = g.repo.Storer.SetReference(ref)
+			if err != nil {
+				return nil, ""
+			}
+
+			return nil, "Branch release created"
+		},
+	}
+}
+
+//func (g GitRepo) CheckChangelog() Step {
+//	return Step{
+//		Desc: "Looking for changelog file",
+//		Help: "Don't worry, if it doesn't exist I will create for you",
+//		Func: func() error {
+//			tree, err := g.repo.Worktree()
+//			if err != nil {
+//				return err
+//			}
+//
+//			treeStatus, err := tree.Status()
+//			if err != nil {
+//				return err
+//			}
+//
+//			if treeStatus.IsClean() {
+//				return errors.New("current branch is dirty")
+//			}
+//
+//			return nil
+//		},
+//	}
+//}
 
 func (g GitRepo) GetRepoInfo() {
 	c, _ := g.repo.Config()

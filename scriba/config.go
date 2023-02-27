@@ -18,5 +18,7 @@ func LoadConfig() (Config, error) {
 		return Config{},
 			fmt.Errorf(errMsg, githubAccessToken)
 	}
-	return Config{}, nil
+	return Config{
+		GithubTokenAPI: token,
+	}, nil
 }

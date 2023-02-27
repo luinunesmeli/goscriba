@@ -1,8 +1,6 @@
 package view
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
-
 	"github.com/luinunesmeli/goscriba/scriba"
 )
 
@@ -10,34 +8,27 @@ type stepResultMsg struct {
 	desc string
 	help string
 	err  error
+	ok   string
 }
 
 type stepResults []stepResultMsg
 
-//type resultMsg func() tea.Msg
-
-func runStep(step scriba.Step) tea.Cmd {
-	return func() tea.Msg {
-		return stepResultMsg{
+func runSteps(steps ...scriba.Step) stepResults {
+	out := stepResults{}
+	for _, step := range steps {
+		err, msg := step.Func()
+		out = append(out, stepResultMsg{
 			desc: step.Desc,
 			help: step.Help,
-			err:  step.Func(),
-		}
-	}
-}
+			err:  err,
+			ok:   msg,
+		})
 
-func runSteps(steps ...scriba.Step) tea.Cmd {
-	return func() tea.Msg {
-		out := make(stepResults, len(steps))
-		for i, step := range steps {
-			out[i] = stepResultMsg{
-				desc: step.Desc,
-				help: step.Help,
-				err:  step.Func(),
-			}
+		if err != nil {
+			return out
 		}
-		return out
 	}
+	return out
 }
 
 func (s stepResults) checkError() bool {
@@ -47,4 +38,12 @@ func (s stepResults) checkError() bool {
 		}
 	}
 	return false
+}
+
+func (s stepResults) merge(res stepResults) stepResults {
+	merged := s
+	for _, msg := range res {
+		merged = append(merged, msg)
+	}
+	return merged
 }
