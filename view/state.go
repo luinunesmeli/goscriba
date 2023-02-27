@@ -14,6 +14,7 @@ const (
 	chooseTag
 	setDays
 	createRelease
+	listCommits
 )
 
 func newStateMsg(value state) tea.Cmd {

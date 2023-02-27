@@ -67,9 +67,9 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg {
 		case checkoutRepository:
 			m.actualStep = m.actualStep.merge(runSteps(
-				m.gitrepo.CheckRepoState(),
-				m.gitrepo.CheckoutToBranch(developBranchName),
-				m.gitrepo.PullDevelop(),
+			//m.gitrepo.CheckRepoState(),
+			//m.gitrepo.CheckoutToBranch(developBranchName),
+			//m.gitrepo.PullDevelop(),
 			))
 
 			if m.actualStep.checkError() {
@@ -88,12 +88,20 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case createRelease:
 			m.actualStep = m.actualStep.merge(runSteps(
 				m.gitrepo.CreateRelease(m.chosenVersion),
-				m.gitrepo.CheckoutToBranch(fmt.Sprintf(releaseBranchName, m.chosenVersion)),
+				//m.gitrepo.CheckoutToBranch(fmt.Sprintf(releaseBranchName, m.chosenVersion)),
 			))
 			if m.actualStep.checkError() {
 				return m, tea.Quit
 			}
 			m.latestTag = m.github.LatestTag
+			return m, newStateMsg(listCommits)
+		case listCommits:
+			m.actualStep = m.actualStep.merge(runSteps(
+				m.github.GetCommits(context.Background(), m.chosenDays),
+			))
+			if m.actualStep.checkError() {
+				return m, tea.Quit
+			}
 			return m, tea.Quit
 		}
 
