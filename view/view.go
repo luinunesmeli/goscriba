@@ -40,10 +40,9 @@ const (
 func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo) View {
 	ctx := context.Background()
 	return View{
-		gitrepo:     gitrepo,
-		github:      github,
-		versionList: newVersionList(),
-		confirm:     newConfirm(),
+		gitrepo: gitrepo,
+		github:  github,
+		confirm: newConfirm(),
 		steps: []scriba.Step{
 			gitrepo.CheckRepoState(),
 			gitrepo.CheckoutToBranch(developBranchName),
@@ -111,12 +110,9 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			return m, newStateMsg(nextStep)
 		case nextStep:
-			if m.github.LatestTag != "" {
+			if m.github.LatestTag != "" && len(m.github.ActualPRs) > 0 {
 				m.session.LatestTag = m.github.LatestTag
 				m.session.PullRequests = m.github.ActualPRs
-
-				fmt.Println(m.github.LatestTag)
-
 				return m, newStateMsg(chooseTag)
 			}
 
@@ -135,6 +131,13 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	var cmd tea.Cmd
 	if m.session.state == chooseTag {
+		if m.versionList == nil {
+			list, err := newVersionList(m.session.LatestTag)
+			if err != nil {
+				return m, tea.Quit
+			}
+			m.versionList = list
+		}
 		m.versionList, cmd = m.versionList.Update(msg)
 	}
 	if m.session.state == confirm {
