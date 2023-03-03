@@ -3,25 +3,37 @@ package scriba
 import (
 	"errors"
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 )
 
 type GitRepo struct {
 	repo *git.Repository
+	cfg  Config
 }
 
-func NewGitRepo(path string) (GitRepo, error) {
+const (
+	developBranchName = "refs/heads/develop"
+	releaseBranchName = "refs/heads/release/%s"
+)
+
+func NewGitRepo(path string, cfg Config) (GitRepo, error) {
 	repo, err := git.PlainOpen(path)
 	if err != nil {
 		return GitRepo{}, fmt.Errorf("actual directory doesn't contains a git repository: %w", err)
 	}
-	return GitRepo{
-		repo: repo,
-	}, nil
+	return GitRepo{repo: repo, cfg: cfg}, nil
+}
+
+func (g GitRepo) CheckoutToDevelop() Step {
+	return g.CheckoutToBranch(developBranchName)
+}
+
+func (g GitRepo) CheckoutToRelease(tag string) Step {
+	return g.CheckoutToBranch(fmt.Sprintf(releaseBranchName, tag))
 }
 
 func (g GitRepo) CheckoutToBranch(branch string) Step {
@@ -75,13 +87,18 @@ func (g GitRepo) PullDevelop() Step {
 				return err, ""
 			}
 
-			opts := git.PullOptions{}
-			err = tree.Pull(&opts)
+			opts := git.PullOptions{
+				RemoteName: "origin",
+				Auth: &http.BasicAuth{
+					Username: "token_user", // yes, this can be anything except an empty string
+					Password: g.cfg.GithubTokenAPI,
+				},
+			}
 
-			if err.Error() == "already up-to-date" {
+			if err = tree.Pull(&opts); err != nil && err.Error() == "already up-to-date" {
 				return nil, "Already up-to-date! No changes made!"
 			}
-			return err, ""
+			return nil, ""
 		},
 	}
 }
@@ -127,40 +144,49 @@ func (g GitRepo) ReleaseExists(tag string) Step {
 	}
 }
 
+func (g GitRepo) Commit(tag string) Step {
+	return Step{
+		Desc: "Commit changelog changes...",
+		Help: "Some errors found when commiting changes",
+		Func: func() (error, string) {
+			tree, err := g.repo.Worktree()
+			if err != nil {
+				return err, ""
+			}
+
+			opts := &git.CommitOptions{All: true}
+			hash, err := tree.Commit(fmt.Sprintf("Automatic release commit %s", tag), opts)
+			if err != nil {
+				return err, ""
+			}
+
+			return nil, fmt.Sprintf("Commited with hash `%s`", hash.String())
+		},
+	}
+}
+
+func (g GitRepo) PushRelease(tag string) Step {
+	return Step{
+		Desc: fmt.Sprintf("Push release/%s to remote", tag),
+		Help: "Couldn't push release to remote!",
+		Func: func() (error, string) {
+			opts := &git.PushOptions{
+				//RemoteName: fmt.Sprintf(releaseBranchName, tag),
+			}
+
+			if err := g.repo.Push(opts); err != nil {
+				return err, ""
+			}
+
+			return nil, ""
+		},
+	}
+}
+
 func (g GitRepo) GetRepoInfo() (string, string) {
 	c, _ := g.repo.Config()
 	r := c.Remotes
 
 	parts := strings.Split(r["origin"].URLs[0], "/")
 	return parts[3], strings.TrimSuffix(parts[4], ".git")
-}
-
-func gitStatus(wt *git.Worktree) (git.Status, error) {
-	c := exec.Command("git", "status", "--porcelain", "-z")
-	c.Dir = wt.Filesystem.Root()
-	output, err := c.Output()
-	if err != nil {
-		stat, err := wt.Status()
-		return stat, err
-	}
-
-	lines := strings.Split(string(output), "\000")
-	stat := make(map[string]*git.FileStatus, len(lines))
-	for _, line := range lines {
-		if len(line) == 0 {
-			continue
-		}
-
-		parts := strings.SplitN(strings.TrimLeft(line, " "), " ", 2)
-		if len(parts) == 2 {
-			stat[strings.Trim(parts[1], " ")] = &git.FileStatus{
-				Staging: git.StatusCode([]byte(parts[0])[0]),
-			}
-		} else {
-			stat[strings.Trim(parts[0], " ")] = &git.FileStatus{
-				Staging: git.Unmodified,
-			}
-		}
-	}
-	return stat, err
 }
