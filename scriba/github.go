@@ -12,7 +12,7 @@ import (
 type GithubRepo struct {
 	client    *github.Client
 	LatestTag string
-	ActualPRs []PR
+	ActualPRs PRs
 	owner     string
 	repo      string
 }
@@ -31,9 +31,13 @@ type PR struct {
 }
 
 const (
-	PRFeature PRType = "feature"
-	base             = "main"
-	head             = "develop"
+	Feature     PRType = "feature"
+	Enhancement PRType = "enhancement"
+	Fix         PRType = "fix"
+	Bugfix      PRType = "bugfix"
+
+	base = "main"
+	head = "develop"
 )
 
 func NewGithubRepo(client *http.Client, owner, repo string) GithubRepo {
@@ -61,7 +65,7 @@ func (r *GithubRepo) LoadLatestTag(ctx context.Context) Step {
 
 func (r *GithubRepo) GetPullRequests(ctx context.Context) Step {
 	return Step{
-		Desc: "Comparing `main` and `develop`",
+		Desc: "Comparing `master` and `develop`",
 		Help: "Couldn't get diff!",
 		Func: func() (error, string) {
 			opts := &github.ListOptions{}
@@ -71,30 +75,16 @@ func (r *GithubRepo) GetPullRequests(ctx context.Context) Step {
 			if err != nil {
 				return err, ""
 			}
-
-			opt2 := &github.PullRequestListOptions{
-				State: "closed",
-			}
+			prOptions := &github.PullRequestListOptions{State: "open"}
 			for _, commit := range commits.Commits {
-				if commit.SHA == nil {
-					continue
-				}
-
-				pr, _, _ := r.client.PullRequests.ListPullRequestsWithCommit(
-					ctx,
-					r.owner,
-					r.repo,
-					*commit.SHA,
-					opt2,
-				)
-
+				pr, _, _ := r.client.PullRequests.ListPullRequestsWithCommit(ctx, r.owner, r.repo, commit.GetSHA(), prOptions)
 				for _, p := range pr {
 					prType := getPRType(p.GetHead())
 					if prType == "" {
 						continue
 					}
 
-					r.ActualPRs = append(r.ActualPRs, PR{
+					r.ActualPRs = r.ActualPRs.Append(PR{
 						PRType: prType,
 						Title:  p.GetTitle(),
 						PRLink: p.GetLinks().GetHTML().GetHRef(),
@@ -111,8 +101,10 @@ func (r *GithubRepo) GetPullRequests(ctx context.Context) Step {
 
 func getPRType(branch *github.PullRequestBranch) PRType {
 	switch {
-	case strings.HasPrefix(branch.GetRef(), string(PRFeature)):
-		return PRFeature
+	case strings.HasPrefix(branch.GetRef(), string(Feature)):
+		return Feature
+	case strings.HasPrefix(branch.GetRef(), string(Enhancement)):
+		return Enhancement
 	default:
 		return ""
 	}
@@ -124,6 +116,32 @@ func (p PRs) Filter(prType PRType) PRs {
 		if pr.PRType == prType {
 			out = append(out, pr)
 		}
+	}
+	return out
+}
+
+func (p PRs) AsMap() map[PRType]PRs {
+	out := map[PRType]PRs{}
+	for _, pr := range p {
+		if _, ok := out[pr.PRType]; !ok {
+			out[pr.PRType] = PRs{}
+		}
+		out[pr.PRType] = append(out[pr.PRType], pr)
+	}
+	return out
+}
+
+func (p PRs) Append(value PR) PRs {
+	if len(p) == 0 {
+		return PRs{value}
+	}
+
+	out := PRs{}
+	for _, pr := range p {
+		if pr.Number == value.Number {
+			return p
+		}
+		out = append(out, pr)
 	}
 	return out
 }

@@ -9,9 +9,7 @@ type (
 )
 
 const (
-	chooseTag = iota + 1
-	createRelease
-	confirm
+	confirm = iota + 1
 	startStep
 	executeStep
 	nextStep

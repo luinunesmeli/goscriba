@@ -13,11 +13,12 @@ type (
 		output string
 	}
 
-	resultMsg struct {
-		state   state
-		step    scriba.Step
-		result  stepResult
-		content string
+	executeStepMsg struct {
+		result scriba.StepResult
+	}
+
+	startStepMsg struct {
+		step scriba.Step
 	}
 )
 
@@ -30,26 +31,26 @@ func (s stepResultList) Init() tea.Cmd {
 }
 
 func (s stepResultList) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	resultMsg := msg.(resultMsg)
 	var cmd tea.Cmd
-	switch resultMsg.state {
-	case startStep:
-		s.output += fmt.Sprintf("🏃%s... ", resultMsg.step.Desc)
+
+	switch msg := msg.(type) {
+	case startStepMsg:
+		s.output += fmt.Sprintf("🏃%s... ", msg.step.Desc)
 		return s, cmd
-	case executeStep:
-		if resultMsg.result.err != nil {
-			s.output += fmt.Sprintf("👎💩 (took %f)\n", resultMsg.result.elapsed)
-			s.output += fmt.Sprintf("👹%s\n", resultMsg.result.err.Error())
-			s.output += fmt.Sprintf("💡%s\n", resultMsg.result.help)
+	case executeStepMsg:
+		if msg.result.Err != nil {
+			s.output += fmt.Sprintf("👎💩 (took %f)\n", msg.result.Elapsed)
+			s.output += fmt.Sprintf("👹Error: %s\n", msg.result.Err.Error())
+			s.output += fmt.Sprintf("💡%s\n", msg.result.Help)
 			return s, tea.Quit
 		}
-		s.output += fmt.Sprintf("🤙🤓 (took %f)\n", resultMsg.result.elapsed)
+		s.output += fmt.Sprintf("🤙🤓 (took %f)\n", msg.result.Elapsed)
 
-		if resultMsg.result.ok != "" {
-			s.output += fmt.Sprintf("💡%s\n", resultMsg.result.ok)
+		if msg.result.Ok != "" {
+			s.output += fmt.Sprintf("💡%s\n", msg.result.Ok)
 		}
 	}
-	return s, cmd
+	return tea.Model(s), cmd
 }
 
 func (s stepResultList) View() string {
