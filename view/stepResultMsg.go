@@ -6,7 +6,7 @@ import (
 	"github.com/luinunesmeli/goscriba/scriba"
 )
 
-type stepResultMsg struct {
+type stepResult struct {
 	desc    string
 	help    string
 	err     error
@@ -14,10 +14,10 @@ type stepResultMsg struct {
 	elapsed float64
 }
 
-func runStep(step scriba.Step) stepResultMsg {
+func runStep(step scriba.Step) stepResult {
 	t := time.Now()
 	err, msg := step.Func()
-	return stepResultMsg{
+	return stepResult{
 		desc:    step.Desc,
 		help:    step.Help,
 		err:     err,
