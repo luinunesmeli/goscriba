@@ -15,8 +15,8 @@ type (
 	View struct {
 		versionList *selector.Model
 		confirm     *selector.Model
-		gitrepo     scriba.GitRepo
-		github      scriba.GithubRepo
+		gitrepo     *scriba.GitRepo
+		github      *scriba.GithubRepo
 		session     Session
 		steps       []scriba.Step
 	}
@@ -37,7 +37,7 @@ const (
 	releaseBranchName = "refs/heads/release/%s"
 )
 
-func NewView(gitrepo scriba.GitRepo, github scriba.GithubRepo) View {
+func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo) View {
 	ctx := context.Background()
 	return View{
 		gitrepo:     gitrepo,

@@ -29,7 +29,7 @@ func main() {
 
 	github := scriba.NewGithubRepo(buildOauthclient(cfg), owner, repo)
 
-	p := tea.NewProgram(view.NewView(gitRepo, github))
+	p := tea.NewProgram(view.NewView(&gitRepo, &github))
 	if _, err = p.Run(); err != nil {
 		handleErr(err)
 	}

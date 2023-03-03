@@ -14,12 +14,6 @@ type GitRepo struct {
 	repo *git.Repository
 }
 
-type Step struct {
-	Desc string
-	Help string
-	Func func() (error, string)
-}
-
 func NewGitRepo(path string) (GitRepo, error) {
 	repo, err := git.PlainOpen(path)
 	if err != nil {
@@ -163,7 +157,6 @@ func gitStatus(wt *git.Worktree) (git.Status, error) {
 				Staging: git.StatusCode([]byte(parts[0])[0]),
 			}
 		} else {
-			// this shouldn't happen
 			stat[strings.Trim(parts[0], " ")] = &git.FileStatus{
 				Staging: git.Unmodified,
 			}
