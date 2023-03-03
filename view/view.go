@@ -13,12 +13,13 @@ import (
 
 type (
 	View struct {
-		versionList *selector.Model
-		confirm     *selector.Model
-		gitrepo     *scriba.GitRepo
-		github      *scriba.GithubRepo
-		session     Session
-		steps       []scriba.Step
+		versionList    *selector.Model
+		confirm        *selector.Model
+		stepResultList stepResultList
+		gitrepo        *scriba.GitRepo
+		github         *scriba.GithubRepo
+		session        Session
+		steps          []scriba.Step
 	}
 )
 
@@ -40,9 +41,10 @@ const (
 func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo) View {
 	ctx := context.Background()
 	return View{
-		gitrepo: gitrepo,
-		github:  github,
-		confirm: newConfirm(),
+		gitrepo:        gitrepo,
+		github:         github,
+		confirm:        newConfirm(),
+		stepResultList: newStepResultList(),
 		steps: []scriba.Step{
 			gitrepo.CheckRepoState(),
 			gitrepo.CheckoutToBranch(developBranchName),
