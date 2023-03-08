@@ -20,8 +20,8 @@ const (
 	releaseBranchName = "refs/heads/release/%s"
 )
 
-func NewGitRepo(path string, cfg Config) (GitRepo, error) {
-	repo, err := git.PlainOpen(path)
+func NewGitRepo(cfg Config) (GitRepo, error) {
+	repo, err := git.PlainOpen(cfg.Path)
 	if err != nil {
 		return GitRepo{}, fmt.Errorf("actual directory doesn't contains a git repository: %w", err)
 	}
