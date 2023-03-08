@@ -171,7 +171,7 @@ func (g GitRepo) PushRelease(tag string) Step {
 		Help: "Couldn't push release to remote!",
 		Func: func() (error, string) {
 			opts := &git.PushOptions{
-				//RemoteName: fmt.Sprintf(releaseBranchName, tag),
+				RemoteName: fmt.Sprintf(releaseBranchName, tag),
 			}
 
 			if err := g.repo.Push(opts); err != nil {

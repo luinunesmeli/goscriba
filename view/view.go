@@ -20,6 +20,8 @@ type (
 	}
 )
 
+// test
+
 type Session struct {
 	actual scriba.Step
 	state  state
