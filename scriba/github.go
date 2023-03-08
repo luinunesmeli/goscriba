@@ -36,6 +36,7 @@ const (
 	Fix         PRType = "fix"
 	Bugfix      PRType = "bugfix"
 
+	//base = "master"
 	base = "main"
 	head = "develop"
 )
