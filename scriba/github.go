@@ -11,6 +11,7 @@ import (
 
 type GithubRepo struct {
 	client    *github.Client
+	config    Config
 	LatestTag string
 	ActualPRs PRs
 	owner     string
@@ -36,16 +37,15 @@ const (
 	Fix         PRType = "fix"
 	Bugfix      PRType = "bugfix"
 
-	//base = "master"
-	base = "main"
 	head = "develop"
 )
 
-func NewGithubRepo(client *http.Client, owner, repo string) GithubRepo {
+func NewGithubRepo(client *http.Client, cfg Config, owner, repo string) GithubRepo {
 	return GithubRepo{
 		client: github.NewClient(client),
 		owner:  owner,
 		repo:   repo,
+		config: cfg,
 	}
 }
 
@@ -71,7 +71,7 @@ func (r *GithubRepo) GetPullRequests(ctx context.Context) Step {
 		Func: func() (error, string) {
 			opts := &github.ListOptions{}
 			commits, _, err := r.client.Repositories.CompareCommits(
-				ctx, r.owner, r.repo, base, head, opts,
+				ctx, r.owner, r.repo, r.config.Base, head, opts,
 			)
 			if err != nil {
 				return err, ""

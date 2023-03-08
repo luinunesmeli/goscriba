@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
@@ -21,19 +20,14 @@ func main() {
 		handleErr(err)
 	}
 
-	basePath := cliParams()
-
-	//gitRepo, err := scriba.NewGitRepo("./")
-	//gitRepo, err := scriba.NewGitRepo("/Users/luinunes/nodejs/fury_shp-lhts-rostering-frontend", cfg)
-
-	gitRepo, err := scriba.NewGitRepo(basePath, cfg)
+	gitRepo, err := scriba.NewGitRepo(cfg)
 	if err != nil {
 		handleErr(err)
 	}
 	owner, repo := gitRepo.GetRepoInfo()
 
-	github := scriba.NewGithubRepo(buildOauthclient(cfg), owner, repo)
-	changelog := scriba.NewChangelog(basePath + "docs/guide/pages/changelog.md")
+	github := scriba.NewGithubRepo(buildOauthclient(cfg), cfg, owner, repo)
+	changelog := scriba.NewChangelog(cfg.Changelog)
 
 	p := tea.NewProgram(view.NewView(&gitRepo, &github, &changelog))
 	if _, err = p.Run(); err != nil {
@@ -54,12 +48,4 @@ func buildOauthclient(cfg scriba.Config) *http.Client {
 	tc.Timeout = time.Second * 5
 
 	return tc
-}
-
-func cliParams() string {
-	path := flag.String("path", "./", "project path you want to generate a release")
-	if path == nil {
-		return ""
-	}
-	return *path
 }

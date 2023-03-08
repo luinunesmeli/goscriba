@@ -20,8 +20,6 @@ type (
 	}
 )
 
-// test
-
 type Session struct {
 	actual scriba.Step
 	state  state
@@ -37,7 +35,7 @@ func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo, changelog *scri
 		form:           f,
 		changelog:      changelog,
 		steps: []scriba.Step{
-			//changelog.LoadChangelog(),
+			changelog.LoadChangelog(),
 			gitrepo.CheckRepoState(),
 			gitrepo.CheckoutToDevelop(),
 			gitrepo.PullDevelop(),
@@ -95,7 +93,6 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.gitrepo.CheckoutToRelease(m.form.chosenTag),
 				m.changelog.Update(m.form.chosenTag),
 				m.gitrepo.Commit(m.form.chosenTag),
-				m.gitrepo.PushRelease(m.form.chosenTag),
 			}
 			return m, newStateMsg(startStep)
 		}
