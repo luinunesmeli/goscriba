@@ -172,6 +172,10 @@ func (g GitRepo) PushRelease(tag string) Step {
 		Func: func() (error, string) {
 			opts := &git.PushOptions{
 				RemoteName: fmt.Sprintf(releaseBranchName, tag),
+				Auth: &http.BasicAuth{
+					Username: "token_user", // yes, this can be anything except an empty string
+					Password: g.cfg.GithubTokenAPI,
+				},
 			}
 
 			if err := g.repo.Push(opts); err != nil {
