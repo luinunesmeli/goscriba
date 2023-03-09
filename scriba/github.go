@@ -100,15 +100,14 @@ func (r *GithubRepo) GetPullRequests(ctx context.Context) Step {
 	}
 }
 
-func (r *GithubRepo) CreatePullRequest(ctx context.Context) Step {
+func (r *GithubRepo) CreatePullRequest(ctx context.Context, tag, body string) Step {
 	return Step{
-		Desc: "Loading latest tag",
-		Help: "Couldn't get version. Do you have permission to read this repo?",
+		Desc: "Generating the Pull Request for you.",
+		Help: "Couldn't generate the Pull Request!",
 		Func: func() (error, string) {
-			title := "Test release"
-			body := "Test release"
-			base := "main"
-			head := "release/v0.0.3"
+			title := fmt.Sprintf("Release version %s", tag)
+			base := r.config.Base
+			head := fmt.Sprintf("release/%s", tag)
 
 			newPR := &github.NewPullRequest{
 				Title: &title,
@@ -117,12 +116,12 @@ func (r *GithubRepo) CreatePullRequest(ctx context.Context) Step {
 				Body:  &body,
 			}
 
-			_, _, err := r.client.PullRequests.Create(ctx, r.owner, r.repo, newPR)
+			pr, _, err := r.client.PullRequests.Create(ctx, r.owner, r.repo, newPR)
 			if err != nil {
 				return err, ""
 			}
 
-			return nil, ""
+			return nil, fmt.Sprintf("Access at: %s", pr.GetHTMLURL())
 		},
 	}
 }
