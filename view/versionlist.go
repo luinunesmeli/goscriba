@@ -54,7 +54,7 @@ func nextTags(latestTag string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-	major := strings.TrimSuffix(parts[0], "v")
+	major := strings.TrimPrefix(parts[0], "v")
 
 	versionFmt := "%s.%d.%d"
 	return fmt.Sprintf(versionFmt, major, minor+1, 0), fmt.Sprintf(versionFmt, major, minor, patch+1), nil
