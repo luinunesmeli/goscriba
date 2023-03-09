@@ -10,12 +10,14 @@ import (
 )
 
 type GithubRepo struct {
-	client    *github.Client
-	config    Config
-	LatestTag string
-	ActualPRs PRs
-	owner     string
-	repo      string
+	client        *github.Client
+	config        Config
+	owner         string
+	repo          string
+	LatestTag     string
+	ChosenTag     string
+	ActualPRs     PRs
+	ChangelogBody string
 }
 
 type PRs []PR
@@ -49,8 +51,8 @@ func NewGithubRepo(client *http.Client, cfg Config, owner, repo string) GithubRe
 	}
 }
 
-func (r *GithubRepo) LoadLatestTag(ctx context.Context) Step {
-	return Step{
+func (r *GithubRepo) LoadLatestTag(ctx context.Context) Task {
+	return Task{
 		Desc: "Loading latest tag",
 		Help: "Couldn't get version. Do you have permission to read this repo?",
 		Func: func() (error, string) {
@@ -64,8 +66,8 @@ func (r *GithubRepo) LoadLatestTag(ctx context.Context) Step {
 	}
 }
 
-func (r *GithubRepo) GetPullRequests(ctx context.Context) Step {
-	return Step{
+func (r *GithubRepo) GetPullRequests(ctx context.Context) Task {
+	return Task{
 		Desc: "Comparing `master` and `develop`",
 		Help: "Couldn't get diff!",
 		Func: func() (error, string) {
@@ -100,20 +102,20 @@ func (r *GithubRepo) GetPullRequests(ctx context.Context) Step {
 	}
 }
 
-func (r *GithubRepo) CreatePullRequest(ctx context.Context, tag, body string) Step {
-	return Step{
+func (r *GithubRepo) CreatePullRequest(ctx context.Context) Task {
+	return Task{
 		Desc: "Generating the Pull Request for you.",
 		Help: "Couldn't generate the Pull Request!",
 		Func: func() (error, string) {
-			title := fmt.Sprintf("Release version %s", tag)
+			title := fmt.Sprintf("Release version %s", r.ChosenTag)
 			base := r.config.Base
-			head := fmt.Sprintf("release/%s", tag)
+			head := fmt.Sprintf("release/%s", r.ChosenTag)
 
 			newPR := &github.NewPullRequest{
 				Title: &title,
 				Head:  &head,
 				Base:  &base,
-				Body:  &body,
+				Body:  &r.ChangelogBody,
 			}
 
 			pr, _, err := r.client.PullRequests.Create(ctx, r.owner, r.repo, newPR)

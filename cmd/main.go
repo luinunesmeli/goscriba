@@ -20,8 +20,6 @@ func main() {
 		handleErr(err)
 	}
 
-	fmt.Println(cfg)
-
 	gitRepo, err := scriba.NewGitRepo(cfg)
 	if err != nil {
 		handleErr(err)

@@ -16,36 +16,48 @@ type (
 		github         *scriba.GithubRepo
 		changelog      *scriba.Changelog
 		session        Session
-		steps          []scriba.Step
+		manager        scriba.TaskManager
 		config         scriba.Config
 	}
 )
 
 type Session struct {
-	actual scriba.Step
+	actual scriba.Task
 	state  state
 }
 
 func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo, changelog *scriba.Changelog, config scriba.Config) View {
-	f := newForm()
-	ctx := context.Background()
-	return View{
+	v := View{
 		gitrepo:        gitrepo,
 		github:         github,
 		stepResultList: newStepResultList(),
-		form:           f,
+		form:           newForm(),
 		changelog:      changelog,
 		config:         config,
-		steps: []scriba.Step{
-			changelog.LoadChangelog(),
-			gitrepo.CheckRepoState(),
-			gitrepo.CheckoutToDevelop(),
-			gitrepo.PullDevelop(),
-			github.LoadLatestTag(ctx),
-			github.GetPullRequests(ctx),
-			f.Show(),
-		},
 	}
+
+	ctx := context.Background()
+	steps := []scriba.Task{
+		v.changelog.LoadChangelog(),
+		v.gitrepo.CheckRepoState(),
+		v.gitrepo.CheckoutToDevelop(),
+		v.gitrepo.PullDevelop(),
+		v.github.LoadLatestTag(ctx),
+		v.github.GetPullRequests(ctx),
+		v.form.Show(),
+		v.gitrepo.CreateRelease(),
+		v.gitrepo.CheckoutToRelease(),
+		v.changelog.Update(),
+		v.gitrepo.Commit(),
+	}
+	if config.AutoPR {
+		steps = append(steps, []scriba.Task{
+			v.gitrepo.PushReleaseBranch(),
+			v.github.CreatePullRequest(ctx),
+		}...)
+	}
+	v.manager = scriba.NewTaskManager(steps...)
+	return v
 }
 
 func (m View) Init() tea.Cmd {
@@ -60,15 +72,13 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.session.state = msg
 		switch msg {
 		case startStep:
-			if len(m.steps) == 0 {
+			if m.manager.Empty() {
 				return m, tea.Quit
 			}
-			m.session.actual, m.steps = m.steps[0], m.steps[1:]
-			m.stepResultList, _ = m.stepResultList.Update(startStepMsg{step: m.session.actual})
-
+			m.stepResultList, _ = m.stepResultList.Update(startStepMsg{step: m.manager.Actual()})
 			return m, newStateMsg(executeStep)
 		case executeStep:
-			result := scriba.RunStep(m.session.actual)
+			result := m.manager.RunActual()
 			m.stepResultList, cmd = m.stepResultList.Update(executeStepMsg{result: result})
 			if result.Err != nil {
 				return m, tea.Quit
@@ -84,25 +94,16 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			return m, newStateMsg(nextStep)
 		case nextStep:
-			if len(m.steps) > 0 {
-				return m, newStateMsg(startStep)
+			if m.manager.Empty() {
+				return m, tea.Quit
 			}
-			return m, tea.Quit
+			return m, newStateMsg(startStep)
 		case confirm:
 			m.changelog.PRs = m.github.ActualPRs
-			m.steps = []scriba.Step{
-				m.gitrepo.CreateRelease(m.form.chosenTag),
-				m.gitrepo.CheckoutToRelease(m.form.chosenTag),
-				m.changelog.Update(m.form.chosenTag),
-				m.gitrepo.Commit(m.form.chosenTag),
-			}
-			if m.config.AutoPR {
-				m.steps = append(m.steps, []scriba.Step{
-					m.gitrepo.PushReleaseBranch(m.form.chosenTag),
-					m.github.CreatePullRequest(context.Background(), m.form.chosenTag, m.changelog.Generated),
-				}...)
-			}
-
+			m.changelog.ChosenTag = m.form.chosenTag
+			m.gitrepo.ChosenTag = m.form.chosenTag
+			m.github.ChangelogBody = m.changelog.Generated
+			m.github.ChosenTag = m.form.chosenTag
 			return m, newStateMsg(startStep)
 		}
 	case tea.KeyMsg:

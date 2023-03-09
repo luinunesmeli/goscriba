@@ -101,8 +101,8 @@ func (f *form) View() string {
 	return ""
 }
 
-func (f *form) Show() scriba.Step {
-	return scriba.Step{
+func (f *form) Show() scriba.Task {
+	return scriba.Task{
 		Desc: "Select your version",
 		Help: "Show form",
 		Func: func() (error, string) {
