@@ -93,6 +93,7 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.gitrepo.CheckoutToRelease(m.form.chosenTag),
 				m.changelog.Update(m.form.chosenTag),
 				m.gitrepo.Commit(m.form.chosenTag),
+				m.gitrepo.PushRelease(m.form.chosenTag),
 			}
 			return m, newStateMsg(startStep)
 		}
