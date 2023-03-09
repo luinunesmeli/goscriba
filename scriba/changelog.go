@@ -10,9 +10,10 @@ import (
 
 type (
 	Changelog struct {
-		filename string
-		content  []string
-		PRs      PRs
+		filename  string
+		content   []string
+		PRs       PRs
+		Generated string
 	}
 )
 
@@ -55,6 +56,8 @@ func (c *Changelog) Update(version string) Step {
 			s := ""
 			buf := bytes.NewBufferString(s)
 			err = t.Execute(buf, newTemplateData(version, c.PRs))
+
+			c.Generated = buf.String()
 
 			//content := c.content[1:]
 			//

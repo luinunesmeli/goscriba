@@ -14,6 +14,7 @@ type Config struct {
 	Path           string
 	Base           string
 	Changelog      string
+	AutoPR         bool
 }
 
 func LoadConfig() (Config, error) {
@@ -23,21 +24,23 @@ func LoadConfig() (Config, error) {
 			fmt.Errorf(errMsg, githubAccessToken)
 	}
 
-	path, baseBranch, changelog := loadCliParams()
+	path, baseBranch, changelog, pr := loadCliParams()
 	return Config{
 		GithubTokenAPI: token,
 		Path:           path,
 		Base:           baseBranch,
 		Changelog:      changelog,
+		AutoPR:         pr,
 	}, nil
 }
 
-func loadCliParams() (path, base, changelog string) {
+func loadCliParams() (path, base, changelog string, pr bool) {
+	flag.BoolVar(&pr, "autopr", false, "automatically generate Pull Request (optional)")
 	flag.StringVar(&path, "path", "./", "project path you want to generate a release")
 	flag.StringVar(&base, "base", "master", "provide the base: master or main")
 	flag.StringVar(&changelog, "changelog", path+"docs/guide/pages/changelog.md", "provide the changelog filename")
 
 	flag.Parse()
 
-	return path, base, changelog
+	return path, base, changelog, pr
 }
