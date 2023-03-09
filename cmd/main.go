@@ -20,6 +20,8 @@ func main() {
 		handleErr(err)
 	}
 
+	fmt.Println(cfg)
+
 	gitRepo, err := scriba.NewGitRepo(cfg)
 	if err != nil {
 		handleErr(err)
@@ -29,7 +31,7 @@ func main() {
 	github := scriba.NewGithubRepo(buildOauthclient(cfg), cfg, owner, repo)
 	changelog := scriba.NewChangelog(cfg.Changelog)
 
-	p := tea.NewProgram(view.NewView(&gitRepo, &github, &changelog))
+	p := tea.NewProgram(view.NewView(&gitRepo, &github, &changelog, cfg))
 	if _, err = p.Run(); err != nil {
 		handleErr(err)
 	}

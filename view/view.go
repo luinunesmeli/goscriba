@@ -17,6 +17,7 @@ type (
 		changelog      *scriba.Changelog
 		session        Session
 		steps          []scriba.Step
+		config         scriba.Config
 	}
 )
 
@@ -25,7 +26,7 @@ type Session struct {
 	state  state
 }
 
-func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo, changelog *scriba.Changelog) View {
+func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo, changelog *scriba.Changelog, config scriba.Config) View {
 	f := newForm()
 	ctx := context.Background()
 	return View{
@@ -34,6 +35,7 @@ func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo, changelog *scri
 		stepResultList: newStepResultList(),
 		form:           f,
 		changelog:      changelog,
+		config:         config,
 		steps: []scriba.Step{
 			changelog.LoadChangelog(),
 			gitrepo.CheckRepoState(),
@@ -93,9 +95,14 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.gitrepo.CheckoutToRelease(m.form.chosenTag),
 				m.changelog.Update(m.form.chosenTag),
 				m.gitrepo.Commit(m.form.chosenTag),
-				m.gitrepo.PushReleaseBranch(m.form.chosenTag),
-				m.github.CreatePullRequest(context.Background(), m.form.chosenTag, "base changelog"),
 			}
+			if m.config.AutoPR {
+				m.steps = append(m.steps, []scriba.Step{
+					m.gitrepo.PushReleaseBranch(m.form.chosenTag),
+					m.github.CreatePullRequest(context.Background(), m.form.chosenTag, m.changelog.Generated),
+				}...)
+			}
+
 			return m, newStateMsg(startStep)
 		}
 	case tea.KeyMsg:
