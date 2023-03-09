@@ -100,6 +100,33 @@ func (r *GithubRepo) GetPullRequests(ctx context.Context) Step {
 	}
 }
 
+func (r *GithubRepo) CreatePullRequest(ctx context.Context) Step {
+	return Step{
+		Desc: "Loading latest tag",
+		Help: "Couldn't get version. Do you have permission to read this repo?",
+		Func: func() (error, string) {
+			title := "Test release"
+			body := "Test release"
+			base := "main"
+			head := "release/v0.0.3"
+
+			newPR := &github.NewPullRequest{
+				Title: &title,
+				Head:  &head,
+				Base:  &base,
+				Body:  &body,
+			}
+
+			_, _, err := r.client.PullRequests.Create(ctx, r.owner, r.repo, newPR)
+			if err != nil {
+				return err, ""
+			}
+
+			return nil, ""
+		},
+	}
+}
+
 func getPRType(branch *github.PullRequestBranch) PRType {
 	switch {
 	case strings.HasPrefix(branch.GetRef(), string(Feature)):
