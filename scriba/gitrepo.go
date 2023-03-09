@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 )
@@ -89,12 +90,8 @@ func (g GitRepo) PullDevelop() Step {
 
 			opts := git.PullOptions{
 				RemoteName: "origin",
-				Auth: &http.BasicAuth{
-					Username: "token_user", // yes, this can be anything except an empty string
-					Password: g.cfg.GithubTokenAPI,
-				},
+				Auth:       defaultAuth(g.cfg.GithubTokenAPI),
 			}
-
 			if err = tree.Pull(&opts); err != nil && err.Error() == "already up-to-date" {
 				return nil, "Already up-to-date! No changes made!"
 			}
@@ -165,23 +162,22 @@ func (g GitRepo) Commit(tag string) Step {
 	}
 }
 
-func (g GitRepo) PushRelease(tag string) Step {
+func (g GitRepo) PushReleaseBranch(tag string) Step {
 	return Step{
 		Desc: fmt.Sprintf("Push release/%s to remote", tag),
 		Help: "Couldn't push release to remote!",
 		Func: func() (error, string) {
+			refSpec := fmt.Sprintf("refs/heads/release/%s:refs/heads/release/%s", tag, tag)
+
 			opts := &git.PushOptions{
-				RemoteName: fmt.Sprintf(releaseBranchName, tag),
-				Auth: &http.BasicAuth{
-					Username: "token_user", // yes, this can be anything except an empty string
-					Password: g.cfg.GithubTokenAPI,
-				},
+				RemoteName: "origin",
+				RefSpecs:   []config.RefSpec{config.RefSpec(refSpec)},
+				Auth:       defaultAuth(g.cfg.GithubTokenAPI),
 			}
 
 			if err := g.repo.Push(opts); err != nil {
 				return err, ""
 			}
-
 			return nil, ""
 		},
 	}
@@ -193,4 +189,11 @@ func (g GitRepo) GetRepoInfo() (string, string) {
 
 	parts := strings.Split(r["origin"].URLs[0], "/")
 	return parts[3], strings.TrimSuffix(parts[4], ".git")
+}
+
+func defaultAuth(token string) *http.BasicAuth {
+	return &http.BasicAuth{
+		Username: "token_user", // yes, this can be anything except an empty string
+		Password: token,
+	}
 }
