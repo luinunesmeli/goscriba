@@ -49,7 +49,7 @@ func (g GitRepo) CheckoutToBranch(branch string) Step {
 
 			checkoutOpts := &git.CheckoutOptions{
 				Branch: plumbing.ReferenceName(branch),
-				Keep:   false,
+				Keep:   true,
 			}
 			if err = tree.Checkout(checkoutOpts); err != nil {
 				return err, ""
