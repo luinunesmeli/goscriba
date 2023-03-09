@@ -12,8 +12,10 @@ import (
 )
 
 type GitRepo struct {
-	repo *git.Repository
-	cfg  Config
+	repo          *git.Repository
+	cfg           Config
+	ChosenTag     string
+	releaseBranch string
 }
 
 const (
@@ -29,38 +31,47 @@ func NewGitRepo(cfg Config) (GitRepo, error) {
 	return GitRepo{repo: repo, cfg: cfg}, nil
 }
 
-func (g GitRepo) CheckoutToDevelop() Step {
-	return g.CheckoutToBranch(developBranchName)
-}
-
-func (g GitRepo) CheckoutToRelease(tag string) Step {
-	return g.CheckoutToBranch(fmt.Sprintf(releaseBranchName, tag))
-}
-
-func (g GitRepo) CheckoutToBranch(branch string) Step {
-	return Step{
-		Desc: fmt.Sprintf("Checkout to `%s` branch", branch),
-		Help: fmt.Sprintf("Looks like `%s` branch don't exist or some code wasn't commited.", branch),
-		Func: func() (error, string) {
-			tree, err := g.repo.Worktree()
-			if err != nil {
-				return err, ""
-			}
-
-			checkoutOpts := &git.CheckoutOptions{
-				Branch: plumbing.ReferenceName(branch),
-				Keep:   true,
-			}
-			if err = tree.Checkout(checkoutOpts); err != nil {
-				return err, ""
-			}
-			return nil, ""
-		},
+func (g *GitRepo) CheckoutToDevelop() Task {
+	return Task{
+		Desc: "Checkout to develop",
+		Help: "Looks like some code wasnt commited at develop.",
+		Func: g.CheckoutToBranch(false),
 	}
 }
 
-func (g GitRepo) CheckRepoState() Step {
-	return Step{
+func (g *GitRepo) CheckoutToRelease() Task {
+	return Task{
+		Desc: "Checkout to release branch",
+		Help: "Looks like the release branch isn't creates.",
+		Func: g.CheckoutToBranch(true),
+	}
+}
+
+func (g *GitRepo) CheckoutToBranch(asRelease bool) func() (error, string) {
+	return func() (error, string) {
+		tree, err := g.repo.Worktree()
+		if err != nil {
+			return err, ""
+		}
+
+		branch := developBranchName
+		if asRelease {
+			branch = g.releaseBranch
+		}
+
+		checkoutOpts := &git.CheckoutOptions{
+			Branch: plumbing.ReferenceName(branch),
+			Keep:   true,
+		}
+		if err = tree.Checkout(checkoutOpts); err != nil {
+			return err, ""
+		}
+		return nil, ""
+	}
+}
+
+func (g *GitRepo) CheckRepoState() Task {
+	return Task{
 		Desc: "Checking if current branch is clear",
 		Help: "Commit or stash first your changes before creating a release",
 		Func: func() (error, string) {
@@ -78,8 +89,8 @@ func (g GitRepo) CheckRepoState() Step {
 	}
 }
 
-func (g GitRepo) PullDevelop() Step {
-	return Step{
+func (g *GitRepo) PullDevelop() Task {
+	return Task{
 		Desc: "Pull changes from remote",
 		Help: "Cannot pull changes or there are uncommited changes!",
 		Func: func() (error, string) {
@@ -100,9 +111,9 @@ func (g GitRepo) PullDevelop() Step {
 	}
 }
 
-func (g GitRepo) CreateRelease(tag string) Step {
-	return Step{
-		Desc: fmt.Sprintf("Create release/%s", tag),
+func (g *GitRepo) CreateRelease() Task {
+	return Task{
+		Desc: fmt.Sprintf("Create release/%s", g.ChosenTag),
 		Help: "Couldn't create release!",
 		Func: func() (error, string) {
 			headRef, err := g.repo.Head()
@@ -110,8 +121,8 @@ func (g GitRepo) CreateRelease(tag string) Step {
 				return nil, ""
 			}
 
-			branch := fmt.Sprintf("refs/heads/release/%s", tag)
-			ref := plumbing.NewHashReference(plumbing.ReferenceName(branch), headRef.Hash())
+			g.releaseBranch = fmt.Sprintf(releaseBranchName, g.ChosenTag)
+			ref := plumbing.NewHashReference(plumbing.ReferenceName(g.releaseBranch), headRef.Hash())
 			err = g.repo.Storer.SetReference(ref)
 			if err != nil {
 				return nil, ""
@@ -122,8 +133,8 @@ func (g GitRepo) CreateRelease(tag string) Step {
 	}
 }
 
-func (g GitRepo) ReleaseExists(tag string) Step {
-	return Step{
+func (g *GitRepo) ReleaseExists(tag string) Task {
+	return Task{
 		Desc: fmt.Sprintf("Create release/%s", tag),
 		Help: "Couldn't create release!",
 		Func: func() (error, string) {
@@ -141,8 +152,8 @@ func (g GitRepo) ReleaseExists(tag string) Step {
 	}
 }
 
-func (g GitRepo) Commit(tag string) Step {
-	return Step{
+func (g *GitRepo) Commit() Task {
+	return Task{
 		Desc: "Commit changelog changes...",
 		Help: "Some errors found when commiting changes",
 		Func: func() (error, string) {
@@ -152,7 +163,7 @@ func (g GitRepo) Commit(tag string) Step {
 			}
 
 			opts := &git.CommitOptions{All: true}
-			hash, err := tree.Commit(fmt.Sprintf("Automatic release commit %s", tag), opts)
+			hash, err := tree.Commit(fmt.Sprintf("Automatic release commit %s", g.ChosenTag), opts)
 			if err != nil {
 				return err, ""
 			}
@@ -162,12 +173,12 @@ func (g GitRepo) Commit(tag string) Step {
 	}
 }
 
-func (g GitRepo) PushReleaseBranch(tag string) Step {
-	return Step{
-		Desc: fmt.Sprintf("Push release/%s to remote", tag),
+func (g *GitRepo) PushReleaseBranch() Task {
+	return Task{
+		Desc: fmt.Sprintf("Push release/%s to remote", g.ChosenTag),
 		Help: "Couldn't push release to remote!",
 		Func: func() (error, string) {
-			refSpec := fmt.Sprintf("refs/heads/release/%s:refs/heads/release/%s", tag, tag)
+			refSpec := fmt.Sprintf("refs/heads/release/%s:refs/heads/release/%s", g.ChosenTag, g.ChosenTag)
 
 			opts := &git.PushOptions{
 				RemoteName: "origin",
@@ -183,7 +194,7 @@ func (g GitRepo) PushReleaseBranch(tag string) Step {
 	}
 }
 
-func (g GitRepo) GetRepoInfo() (string, string) {
+func (g *GitRepo) GetRepoInfo() (string, string) {
 	c, _ := g.repo.Config()
 	r := c.Remotes
 

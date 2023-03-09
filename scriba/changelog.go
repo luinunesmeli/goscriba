@@ -14,6 +14,7 @@ type (
 		content   []string
 		PRs       PRs
 		Generated string
+		ChosenTag string
 	}
 )
 
@@ -23,8 +24,8 @@ func NewChangelog(filename string) Changelog {
 	}
 }
 
-func (c *Changelog) LoadChangelog() Step {
-	return Step{
+func (c *Changelog) LoadChangelog() Task {
+	return Task{
 		Desc: "Load actual changelog",
 		Help: fmt.Sprintf("Changelog should exist at %s", c.filename),
 		Func: func() (error, string) {
@@ -43,8 +44,8 @@ func (c *Changelog) LoadChangelog() Step {
 	}
 }
 
-func (c *Changelog) Update(version string) Step {
-	return Step{
+func (c *Changelog) Update() Task {
+	return Task{
 		Desc: "Load actual changelog",
 		Help: "Changelog should exist at ",
 		Func: func() (error, string) {
@@ -55,7 +56,7 @@ func (c *Changelog) Update(version string) Step {
 
 			s := ""
 			buf := bytes.NewBufferString(s)
-			err = t.Execute(buf, newTemplateData(version, c.PRs))
+			err = t.Execute(buf, newTemplateData(c.ChosenTag, c.PRs))
 
 			c.Generated = buf.String()
 
