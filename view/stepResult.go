@@ -14,11 +14,11 @@ type (
 	}
 
 	executeStepMsg struct {
-		result scriba.StepResult
+		result scriba.Result
 	}
 
 	startStepMsg struct {
-		step scriba.Step
+		step scriba.Task
 	}
 )
 
