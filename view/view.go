@@ -89,12 +89,12 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case confirm:
 			m.changelog.PRs = m.github.ActualPRs
 			m.steps = []scriba.Step{
-				//m.gitrepo.CreateRelease(m.form.chosenTag),
-				//m.gitrepo.CheckoutToRelease(m.form.chosenTag),
-				//m.changelog.Update(m.form.chosenTag),
-				//m.gitrepo.Commit(m.form.chosenTag),
-				//m.gitrepo.PushReleaseBranch(m.form.chosenTag),
-				//m.github.CreatePullRequest(context.Background()),
+				m.gitrepo.CreateRelease(m.form.chosenTag),
+				m.gitrepo.CheckoutToRelease(m.form.chosenTag),
+				m.changelog.Update(m.form.chosenTag),
+				m.gitrepo.Commit(m.form.chosenTag),
+				m.gitrepo.PushReleaseBranch(m.form.chosenTag),
+				m.github.CreatePullRequest(context.Background(), m.form.chosenTag, "base changelog"),
 			}
 			return m, newStateMsg(startStep)
 		}
