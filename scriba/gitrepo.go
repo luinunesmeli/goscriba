@@ -14,7 +14,6 @@ import (
 type GitRepo struct {
 	repo          *git.Repository
 	cfg           Config
-	ChosenTag     string
 	releaseBranch string
 }
 
@@ -47,8 +46,8 @@ func (g *GitRepo) CheckoutToRelease() Task {
 	}
 }
 
-func (g *GitRepo) CheckoutToBranch(asRelease bool) func() (error, string) {
-	return func() (error, string) {
+func (g *GitRepo) CheckoutToBranch(asRelease bool) Func {
+	return func(session Session) (error, string) {
 		tree, err := g.repo.Worktree()
 		if err != nil {
 			return err, ""
@@ -74,7 +73,7 @@ func (g *GitRepo) CheckRepoState() Task {
 	return Task{
 		Desc: "Checking if current branch is clear",
 		Help: "Commit or stash first your changes before creating a release",
-		Func: func() (error, string) {
+		Func: func(session Session) (error, string) {
 			tree, err := g.repo.Worktree()
 			if err != nil {
 				return err, ""
@@ -93,7 +92,7 @@ func (g *GitRepo) PullDevelop() Task {
 	return Task{
 		Desc: "Pull changes from remote",
 		Help: "Cannot pull changes or there are uncommited changes!",
-		Func: func() (error, string) {
+		Func: func(session Session) (error, string) {
 			tree, err := g.repo.Worktree()
 			if err != nil {
 				return err, ""
@@ -113,22 +112,20 @@ func (g *GitRepo) PullDevelop() Task {
 
 func (g *GitRepo) CreateRelease() Task {
 	return Task{
-		Desc: fmt.Sprintf("Create release/%s", g.ChosenTag),
+		Desc: "Create release...",
 		Help: "Couldn't create release!",
-		Func: func() (error, string) {
+		Func: func(session Session) (error, string) {
 			headRef, err := g.repo.Head()
 			if err != nil {
 				return nil, ""
 			}
 
-			g.releaseBranch = fmt.Sprintf(releaseBranchName, g.ChosenTag)
+			g.releaseBranch = fmt.Sprintf(releaseBranchName, session.ChosenVersion)
 			ref := plumbing.NewHashReference(plumbing.ReferenceName(g.releaseBranch), headRef.Hash())
-			err = g.repo.Storer.SetReference(ref)
-			if err != nil {
+			if err = g.repo.Storer.SetReference(ref); err != nil {
 				return nil, ""
 			}
-
-			return nil, "Branch release created"
+			return nil, fmt.Sprintf("Created branch release %s", g.releaseBranch)
 		},
 	}
 }
@@ -137,7 +134,7 @@ func (g *GitRepo) ReleaseExists(tag string) Task {
 	return Task{
 		Desc: fmt.Sprintf("Create release/%s", tag),
 		Help: "Couldn't create release!",
-		Func: func() (error, string) {
+		Func: func(session Session) (error, string) {
 			branchTag := fmt.Sprintf("refs/heads/release/%s", tag)
 			branch, err := g.repo.Branch(branchTag)
 			if err != nil {
@@ -156,14 +153,14 @@ func (g *GitRepo) Commit() Task {
 	return Task{
 		Desc: "Commit changelog changes...",
 		Help: "Some errors found when commiting changes",
-		Func: func() (error, string) {
+		Func: func(session Session) (error, string) {
 			tree, err := g.repo.Worktree()
 			if err != nil {
 				return err, ""
 			}
 
 			opts := &git.CommitOptions{All: true}
-			hash, err := tree.Commit(fmt.Sprintf("Automatic release commit %s", g.ChosenTag), opts)
+			hash, err := tree.Commit(fmt.Sprintf("Automatic release commit %s", session.ChosenVersion), opts)
 			if err != nil {
 				return err, ""
 			}
@@ -175,21 +172,25 @@ func (g *GitRepo) Commit() Task {
 
 func (g *GitRepo) PushReleaseBranch() Task {
 	return Task{
-		Desc: fmt.Sprintf("Push release/%s to remote", g.ChosenTag),
+		Desc: "Push release to remote",
 		Help: "Couldn't push release to remote!",
-		Func: func() (error, string) {
-			refSpec := fmt.Sprintf("refs/heads/release/%s:refs/heads/release/%s", g.ChosenTag, g.ChosenTag)
+		Func: func(session Session) (error, string) {
+			refSpec := fmt.Sprintf(
+				"refs/heads/release/%s:refs/heads/release/%s",
+				session.ChosenVersion,
+				session.ChosenVersion,
+			)
 
 			opts := &git.PushOptions{
 				RemoteName: "origin",
 				RefSpecs:   []config.RefSpec{config.RefSpec(refSpec)},
 				Auth:       defaultAuth(g.cfg.GithubTokenAPI),
 			}
-
 			if err := g.repo.Push(opts); err != nil {
 				return err, ""
 			}
-			return nil, ""
+
+			return nil, fmt.Sprintf("Pushed release/%s", refSpec)
 		},
 	}
 }

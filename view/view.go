@@ -15,16 +15,10 @@ type (
 		gitrepo        *scriba.GitRepo
 		github         *scriba.GithubRepo
 		changelog      *scriba.Changelog
-		session        Session
 		manager        scriba.TaskManager
 		config         scriba.Config
 	}
 )
-
-type Session struct {
-	actual scriba.Task
-	state  state
-}
 
 func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo, changelog *scriba.Changelog, config scriba.Config) View {
 	v := View{
@@ -69,7 +63,6 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case state:
-		m.session.state = msg
 		switch msg {
 		case startStep:
 			if m.manager.Empty() {
@@ -78,7 +71,7 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stepResultList, _ = m.stepResultList.Update(startStepMsg{step: m.manager.Actual()})
 			return m, newStateMsg(executeStep)
 		case executeStep:
-			result := m.manager.RunActual()
+			result := m.manager.RunActual(scriba.NewSession(m.form.chosenTag, m.github.ActualPRs))
 			m.stepResultList, cmd = m.stepResultList.Update(executeStepMsg{result: result})
 			if result.Err != nil {
 				return m, tea.Quit
@@ -99,11 +92,6 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, newStateMsg(startStep)
 		case confirm:
-			m.changelog.PRs = m.github.ActualPRs
-			m.changelog.ChosenTag = m.form.chosenTag
-			m.gitrepo.ChosenTag = m.form.chosenTag
-			m.github.ChangelogBody = m.changelog.Generated
-			m.github.ChosenTag = m.form.chosenTag
 			return m, newStateMsg(startStep)
 		}
 	case tea.KeyMsg:
