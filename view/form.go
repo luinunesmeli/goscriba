@@ -105,7 +105,7 @@ func (f *form) Show() scriba.Task {
 	return scriba.Task{
 		Desc: "Select your version",
 		Help: "Show form",
-		Func: func() (error, string) {
+		Func: func(_ scriba.Session) (error, string) {
 			f.show = true
 			return nil, ""
 		},

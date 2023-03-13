@@ -13,9 +13,7 @@ type (
 	Changelog struct {
 		filename  string
 		content   []string
-		PRs       PRs
 		Generated string
-		ChosenTag string
 	}
 )
 
@@ -33,7 +31,7 @@ func (c *Changelog) LoadChangelog() Task {
 	return Task{
 		Desc: "Load actual changelog",
 		Help: fmt.Sprintf("Changelog should exist at %s", c.filename),
-		Func: func() (error, string) {
+		Func: func(session Session) (error, string) {
 			file, err := os.Open(c.filename)
 			if err != nil {
 				return err, ""
@@ -53,7 +51,7 @@ func (c *Changelog) Update() Task {
 	return Task{
 		Desc: "Load actual changelog",
 		Help: "Changelog should exist at ",
-		Func: func() (error, string) {
+		Func: func(session Session) (error, string) {
 			t, err := template.New("changelog").Parse(changelogTemplate)
 			if err != nil {
 				return err, ""
@@ -61,7 +59,7 @@ func (c *Changelog) Update() Task {
 
 			s := ""
 			buf := bytes.NewBufferString(s)
-			err = t.Execute(buf, newTemplateData(c.ChosenTag, c.PRs))
+			err = t.Execute(buf, newTemplateData(session.ChosenVersion, session.PRs))
 
 			c.Generated = buf.String()
 
