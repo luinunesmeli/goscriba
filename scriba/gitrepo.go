@@ -99,12 +99,17 @@ func (g *GitRepo) PullDevelop() Task {
 			}
 
 			opts := git.PullOptions{
-				RemoteName: "origin",
-				Auth:       defaultAuth(g.cfg.GithubTokenAPI),
+				ReferenceName: plumbing.NewBranchReferenceName("develop"),
+				SingleBranch:  true,
+				Auth:          defaultAuth(g.cfg.GithubTokenAPI),
 			}
-			if err = tree.Pull(&opts); err != nil && err.Error() == "already up-to-date" {
-				return nil, "Already up-to-date! No changes made!"
+			if err = tree.Pull(&opts); err != nil {
+				if err.Error() == "already up-to-date" {
+					return nil, "Already up-to-date! No changes made!"
+				}
+				return err, ""
 			}
+
 			return nil, ""
 		},
 	}
