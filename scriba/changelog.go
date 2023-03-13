@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"regexp"
 	"text/template"
 )
 
@@ -16,6 +17,10 @@ type (
 		Generated string
 		ChosenTag string
 	}
+)
+
+const (
+	tempPath = "temp-file.txt"
 )
 
 func NewChangelog(filename string) Changelog {
@@ -77,4 +82,48 @@ func (c *Changelog) Update() Task {
 			return err, ""
 		},
 	}
+}
+
+func writeChangelogContent(path string, content string) error {
+	// temporary file
+	temp, err := os.Create(tempPath)
+	if err != nil {
+		return err
+	}
+	defer temp.Close()
+
+	// existing changelog file
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	if _, err = temp.WriteString(content); err != nil {
+		return err
+	}
+	if _, err = temp.WriteString("\n"); err != nil {
+		return err
+	}
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		text := scanner.Text()
+		if match, _ := regexp.Match("#.Changelog", []byte(text)); match {
+			continue
+		}
+		temp.WriteString(text)
+		temp.WriteString("\n")
+	}
+
+	if err = scanner.Err(); err != nil {
+		return err
+	}
+
+	temp.Sync()
+	if err := os.Rename(tempPath, path); err != nil {
+		return err
+	}
+
+	return nil
 }
