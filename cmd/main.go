@@ -1,18 +1,16 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"net/http"
 	"os"
-	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-	"golang.org/x/oauth2"
-
+	"github.com/luinunesmeli/goscriba/cmd/app"
+	"github.com/luinunesmeli/goscriba/cmd/install"
+	"github.com/luinunesmeli/goscriba/cmd/version"
 	"github.com/luinunesmeli/goscriba/scriba"
-	"github.com/luinunesmeli/goscriba/view"
 )
+
+const actualVersion = "0.1.0"
 
 func main() {
 	cfg, err := scriba.LoadConfig()
@@ -20,32 +18,23 @@ func main() {
 		handleErr(err)
 	}
 
-	gitRepo, err := scriba.NewGitRepo(cfg)
+	switch {
+	case cfg.Autoinstall:
+		err = install.Run()
+	case cfg.Version:
+		err = version.Run(actualVersion)
+	default:
+		err = app.Run(cfg)
+	}
+
 	if err != nil {
 		handleErr(err)
 	}
-	owner, repo := gitRepo.GetRepoInfo()
 
-	github := scriba.NewGithubRepo(buildOauthclient(cfg), cfg, owner, repo)
-	changelog := scriba.NewChangelog(cfg.Changelog)
-
-	p := tea.NewProgram(view.NewView(&gitRepo, &github, &changelog, cfg))
-	if _, err = p.Run(); err != nil {
-		handleErr(err)
-	}
+	os.Exit(0)
 }
 
 func handleErr(err error) {
 	fmt.Println(err)
 	os.Exit(1)
-}
-
-func buildOauthclient(cfg scriba.Config) *http.Client {
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: cfg.GithubTokenAPI},
-	)
-	tc := oauth2.NewClient(context.Background(), ts)
-	tc.Timeout = time.Second * 5
-
-	return tc
 }
