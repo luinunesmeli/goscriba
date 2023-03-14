@@ -7,6 +7,8 @@ import (
 	"os"
 	"regexp"
 	"text/template"
+
+	"github.com/luinunesmeli/goscriba/pkg/task"
 )
 
 type (
@@ -27,11 +29,11 @@ func NewChangelog(filename string) Changelog {
 	}
 }
 
-func (c *Changelog) LoadChangelog() Task {
-	return Task{
+func (c *Changelog) LoadChangelog() task.Task {
+	return task.Task{
 		Desc: "Load actual changelog",
 		Help: fmt.Sprintf("Changelog should exist at %s", c.filename),
-		Func: func(session Session) (error, string) {
+		Func: func(session task.Session) (error, string) {
 			file, err := os.Open(c.filename)
 			if err != nil {
 				return err, ""
@@ -47,11 +49,11 @@ func (c *Changelog) LoadChangelog() Task {
 	}
 }
 
-func (c *Changelog) Update() Task {
-	return Task{
+func (c *Changelog) Update() task.Task {
+	return task.Task{
 		Desc: "Load actual changelog",
 		Help: "Changelog should exist at ",
-		Func: func(session Session) (error, string) {
+		Func: func(session task.Session) (error, string) {
 			t, err := template.New("changelog").Parse(changelogTemplate)
 			if err != nil {
 				return err, ""

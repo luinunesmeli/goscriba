@@ -11,6 +11,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 
 	"github.com/luinunesmeli/goscriba/pkg/config"
+	"github.com/luinunesmeli/goscriba/pkg/task"
 )
 
 type GitRepo struct {
@@ -32,24 +33,24 @@ func NewGitRepo(cfg config.Config) (GitRepo, error) {
 	return GitRepo{repo: repo, cfg: cfg}, nil
 }
 
-func (g *GitRepo) CheckoutToDevelop() Task {
-	return Task{
+func (g *GitRepo) CheckoutToDevelop() task.Task {
+	return task.Task{
 		Desc: "Checkout to develop",
 		Help: "Looks like some code wasnt commited at develop.",
 		Func: g.CheckoutToBranch(false),
 	}
 }
 
-func (g *GitRepo) CheckoutToRelease() Task {
-	return Task{
+func (g *GitRepo) CheckoutToRelease() task.Task {
+	return task.Task{
 		Desc: "Checkout to release branch",
 		Help: "Looks like the release branch isn't creates.",
 		Func: g.CheckoutToBranch(true),
 	}
 }
 
-func (g *GitRepo) CheckoutToBranch(asRelease bool) Func {
-	return func(session Session) (error, string) {
+func (g *GitRepo) CheckoutToBranch(asRelease bool) task.Func {
+	return func(session task.Session) (error, string) {
 		tree, err := g.repo.Worktree()
 		if err != nil {
 			return err, ""
@@ -71,11 +72,11 @@ func (g *GitRepo) CheckoutToBranch(asRelease bool) Func {
 	}
 }
 
-func (g *GitRepo) CheckRepoState() Task {
-	return Task{
+func (g *GitRepo) CheckRepoState() task.Task {
+	return task.Task{
 		Desc: "Checking if current branch is clear",
 		Help: "Commit or stash first your changes before creating a release",
-		Func: func(session Session) (error, string) {
+		Func: func(session task.Session) (error, string) {
 			tree, err := g.repo.Worktree()
 			if err != nil {
 				return err, ""
@@ -90,11 +91,11 @@ func (g *GitRepo) CheckRepoState() Task {
 	}
 }
 
-func (g *GitRepo) PullDevelop() Task {
-	return Task{
+func (g *GitRepo) PullDevelop() task.Task {
+	return task.Task{
 		Desc: "Pull changes from remote",
 		Help: "Cannot pull changes or there are uncommited changes!",
-		Func: func(session Session) (error, string) {
+		Func: func(session task.Session) (error, string) {
 			tree, err := g.repo.Worktree()
 			if err != nil {
 				return err, ""
@@ -117,11 +118,11 @@ func (g *GitRepo) PullDevelop() Task {
 	}
 }
 
-func (g *GitRepo) CreateRelease() Task {
-	return Task{
+func (g *GitRepo) CreateRelease() task.Task {
+	return task.Task{
 		Desc: "Create release...",
 		Help: "Couldn't create release!",
-		Func: func(session Session) (error, string) {
+		Func: func(session task.Session) (error, string) {
 			headRef, err := g.repo.Head()
 			if err != nil {
 				return nil, ""
@@ -137,11 +138,11 @@ func (g *GitRepo) CreateRelease() Task {
 	}
 }
 
-func (g *GitRepo) ReleaseExists(tag string) Task {
-	return Task{
+func (g *GitRepo) ReleaseExists(tag string) task.Task {
+	return task.Task{
 		Desc: fmt.Sprintf("Create release/%s", tag),
 		Help: "Couldn't create release!",
-		Func: func(session Session) (error, string) {
+		Func: func(session task.Session) (error, string) {
 			branchTag := fmt.Sprintf("refs/heads/release/%s", tag)
 			branch, err := g.repo.Branch(branchTag)
 			if err != nil {
@@ -156,11 +157,11 @@ func (g *GitRepo) ReleaseExists(tag string) Task {
 	}
 }
 
-func (g *GitRepo) Commit() Task {
-	return Task{
+func (g *GitRepo) Commit() task.Task {
+	return task.Task{
 		Desc: "Commit changelog changes...",
 		Help: "Some errors found when commiting changes",
-		Func: func(session Session) (error, string) {
+		Func: func(session task.Session) (error, string) {
 			tree, err := g.repo.Worktree()
 			if err != nil {
 				return err, ""
@@ -177,11 +178,11 @@ func (g *GitRepo) Commit() Task {
 	}
 }
 
-func (g *GitRepo) PushReleaseBranch() Task {
-	return Task{
+func (g *GitRepo) PushReleaseBranch() task.Task {
+	return task.Task{
 		Desc: "Push release to remote",
 		Help: "Couldn't push release to remote!",
-		Func: func(session Session) (error, string) {
+		Func: func(session task.Session) (error, string) {
 			refSpec := fmt.Sprintf(
 				"refs/heads/release/%s:refs/heads/release/%s",
 				session.ChosenVersion,

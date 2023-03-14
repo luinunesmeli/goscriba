@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"github.com/luinunesmeli/goscriba/scriba"
+	"github.com/luinunesmeli/goscriba/pkg/task"
 )
 
 type (
@@ -14,11 +14,11 @@ type (
 	}
 
 	executeStepMsg struct {
-		result scriba.Result
+		result task.Result
 	}
 
 	startStepMsg struct {
-		step scriba.Task
+		step task.Task
 	}
 )
 
