@@ -1,9 +1,7 @@
-package task
+package scriba
 
 import (
 	"time"
-
-	"github.com/luinunesmeli/goscriba/scriba"
 )
 
 type (
@@ -32,7 +30,7 @@ type (
 
 	Session struct {
 		ChosenVersion string
-		PRs           scriba.PRs
+		PRs           PRs
 	}
 )
 
@@ -70,7 +68,7 @@ func (t Task) Run(session Session) Result {
 	}
 }
 
-func NewSession(chosenVersion string, prs scriba.PRs) Session {
+func NewSession(chosenVersion string, prs PRs) Session {
 	return Session{
 		ChosenVersion: chosenVersion,
 		PRs:           prs,

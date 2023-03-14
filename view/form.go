@@ -8,7 +8,6 @@ import (
 	"github.com/mritd/bubbles/common"
 	"github.com/mritd/bubbles/selector"
 
-	"github.com/luinunesmeli/goscriba/pkg/task"
 	"github.com/luinunesmeli/goscriba/scriba"
 )
 
@@ -102,11 +101,11 @@ func (f *form) View() string {
 	return ""
 }
 
-func (f *form) Show() task.Task {
-	return task.Task{
+func (f *form) Show() scriba.Task {
+	return scriba.Task{
 		Desc: "Select your version",
 		Help: "Show form",
-		Func: func(_ task.Session) (error, string) {
+		Func: func(_ scriba.Session) (error, string) {
 			f.show = true
 			return nil, ""
 		},

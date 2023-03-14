@@ -33,7 +33,7 @@ func Run(cfg config.Config) error {
 
 func buildOauthclient(cfg config.Config) *http.Client {
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: cfg.GithubTokenAPI},
+		&oauth2.Token{AccessToken: cfg.GetPersonalAccessToken()},
 	)
 	tc := oauth2.NewClient(context.Background(), ts)
 	tc.Timeout = time.Second * 5
