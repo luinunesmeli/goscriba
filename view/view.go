@@ -5,6 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/luinunesmeli/goscriba/pkg/config"
 	"github.com/luinunesmeli/goscriba/scriba"
 )
 
@@ -16,11 +17,11 @@ type (
 		github         *scriba.GithubRepo
 		changelog      *scriba.Changelog
 		manager        scriba.TaskManager
-		config         scriba.Config
+		config         config.Config
 	}
 )
 
-func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo, changelog *scriba.Changelog, config scriba.Config) View {
+func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo, changelog *scriba.Changelog, config config.Config) View {
 	v := View{
 		gitrepo:        gitrepo,
 		github:         github,
