@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/luinunesmeli/goscriba/pkg/config"
+	"github.com/luinunesmeli/goscriba/pkg/task"
 	"github.com/luinunesmeli/goscriba/scriba"
 )
 
@@ -16,7 +17,7 @@ type (
 		gitrepo        *scriba.GitRepo
 		github         *scriba.GithubRepo
 		changelog      *scriba.Changelog
-		manager        scriba.TaskManager
+		manager        task.Manager
 		config         config.Config
 	}
 )
@@ -32,7 +33,7 @@ func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo, changelog *scri
 	}
 
 	ctx := context.Background()
-	steps := []scriba.Task{
+	steps := []task.Task{
 		v.changelog.LoadChangelog(),
 		v.gitrepo.CheckRepoState(),
 		v.gitrepo.CheckoutToDevelop(),
@@ -46,12 +47,12 @@ func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo, changelog *scri
 		v.gitrepo.Commit(),
 	}
 	if config.AutoPR {
-		steps = append(steps, []scriba.Task{
+		steps = append(steps, []task.Task{
 			v.gitrepo.PushReleaseBranch(),
 			v.github.CreatePullRequest(ctx),
 		}...)
 	}
-	v.manager = scriba.NewTaskManager(steps...)
+	v.manager = task.NewManager(steps...)
 	return v
 }
 
@@ -72,7 +73,7 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stepResultList, _ = m.stepResultList.Update(startStepMsg{step: m.manager.Actual()})
 			return m, newStateMsg(executeStep)
 		case executeStep:
-			result := m.manager.RunActual(scriba.NewSession(m.form.chosenTag, m.github.ActualPRs))
+			result := m.manager.RunActual(task.NewSession(m.form.chosenTag, m.github.ActualPRs))
 			m.stepResultList, cmd = m.stepResultList.Update(executeStepMsg{result: result})
 			if result.Err != nil {
 				return m, tea.Quit

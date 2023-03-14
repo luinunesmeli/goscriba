@@ -1,7 +1,9 @@
-package scriba
+package task
 
 import (
 	"time"
+
+	"github.com/luinunesmeli/goscriba/scriba"
 )
 
 type (
@@ -22,7 +24,7 @@ type (
 		Elapsed float64
 	}
 
-	TaskManager struct {
+	Manager struct {
 		tasks    []Task
 		actual   Task
 		rollback []Func
@@ -30,19 +32,19 @@ type (
 
 	Session struct {
 		ChosenVersion string
-		PRs           PRs
+		PRs           scriba.PRs
 	}
 )
 
-func NewTaskManager(task ...Task) TaskManager {
-	return TaskManager{tasks: task}
+func NewManager(task ...Task) Manager {
+	return Manager{tasks: task}
 }
 
-func (t *TaskManager) Actual() Task {
+func (t *Manager) Actual() Task {
 	return t.tasks[0]
 }
 
-func (t *TaskManager) RunActual(session Session) Result {
+func (t *Manager) RunActual(session Session) Result {
 	t.actual, t.tasks = t.tasks[0], t.tasks[1:]
 
 	if t.rollback != nil {
@@ -52,7 +54,7 @@ func (t *TaskManager) RunActual(session Session) Result {
 	return t.actual.Run(session)
 }
 
-func (t *TaskManager) Empty() bool {
+func (t *Manager) Empty() bool {
 	return len(t.tasks) == 0
 }
 
@@ -68,7 +70,7 @@ func (t Task) Run(session Session) Result {
 	}
 }
 
-func NewSession(chosenVersion string, prs PRs) Session {
+func NewSession(chosenVersion string, prs scriba.PRs) Session {
 	return Session{
 		ChosenVersion: chosenVersion,
 		PRs:           prs,
