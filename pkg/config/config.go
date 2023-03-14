@@ -4,38 +4,60 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/go-git/go-git/v5/plumbing/transport"
+	"github.com/go-git/go-git/v5/plumbing/transport/http"
 )
 
-const githubAccessToken = "GH_ACCESS_TOKEN"
-const errMsg = "`%s` enviroment variable not found! Please refer to README for help."
+const classicToken = "GH_PERSONAL_ACCESS_TOKEN_CLASSIC"
+const granularToken = "GH_PERSONAL_ACCESS_TOKEN_GRANULAR"
+const errMsg = "`%s` or `%s` enviroment variable not found! Please refer to README for help."
 
 type Config struct {
-	GithubTokenAPI string
-	Path           string
-	Base           string
-	Changelog      string
-	Version        bool
-	AutoPR         bool
-	Autoinstall    bool
+	ClassicToken  string
+	GranularToken string
+	Path          string
+	Base          string
+	Changelog     string
+	Version       bool
+	AutoPR        bool
+	Autoinstall   bool
 }
 
 func LoadConfig() (Config, error) {
-	token := os.Getenv(githubAccessToken)
-	if token == "" {
-		return Config{},
-			fmt.Errorf(errMsg, githubAccessToken)
+	classic, granular, err := getGHTokenEnv()
+	if err != nil {
+		return Config{}, err
 	}
 
 	path, baseBranch, changelog, pr, auto, version := loadCliParams()
 	return Config{
-		GithubTokenAPI: token,
-		Path:           path,
-		Base:           baseBranch,
-		Changelog:      changelog,
-		AutoPR:         pr,
-		Autoinstall:    auto,
-		Version:        version,
+		ClassicToken:  classic,
+		GranularToken: granular,
+		Path:          path,
+		Base:          baseBranch,
+		Changelog:     changelog,
+		AutoPR:        pr,
+		Autoinstall:   auto,
+		Version:       version,
 	}, nil
+}
+
+func (c Config) AuthStrategy() transport.AuthMethod {
+	if c.GranularToken != "" {
+		return &http.TokenAuth{Token: c.GranularToken}
+	}
+	return &http.BasicAuth{
+		Username: "token_user", // yes, this can be anything except an empty string
+		Password: c.ClassicToken,
+	}
+}
+
+func (c Config) GetPersonalAccessToken() string {
+	if c.GranularToken != "" {
+		return c.GranularToken
+	}
+	return c.ClassicToken
 }
 
 func loadCliParams() (path, base, changelog string, pr, auto, version bool) {
@@ -49,4 +71,18 @@ func loadCliParams() (path, base, changelog string, pr, auto, version bool) {
 	flag.Parse()
 
 	return path, base, changelog, pr, auto, version
+}
+
+func getGHTokenEnv() (string, string, error) {
+	classic := os.Getenv(classicToken)
+	if classic != "" {
+		return classic, "", nil
+	}
+
+	granular := os.Getenv(granularToken)
+	if granular != "" {
+		return "", granular, nil
+	}
+
+	return "", "", fmt.Errorf(errMsg, classicToken, granularToken)
 }
