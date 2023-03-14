@@ -6,11 +6,13 @@ import (
 	"net/http"
 
 	"github.com/google/go-github/v50/github"
+
+	"github.com/luinunesmeli/goscriba/pkg/config"
 )
 
 type GithubRepo struct {
 	client        *github.Client
-	config        Config
+	config        config.Config
 	owner         string
 	repo          string
 	LatestTag     string
@@ -22,7 +24,7 @@ const (
 	head = "develop"
 )
 
-func NewGithubRepo(client *http.Client, cfg Config, owner, repo string) GithubRepo {
+func NewGithubRepo(client *http.Client, cfg config.Config, owner, repo string) GithubRepo {
 	return GithubRepo{
 		client: github.NewClient(client),
 		owner:  owner,

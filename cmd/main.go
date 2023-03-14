@@ -7,13 +7,13 @@ import (
 	"github.com/luinunesmeli/goscriba/cmd/app"
 	"github.com/luinunesmeli/goscriba/cmd/install"
 	"github.com/luinunesmeli/goscriba/cmd/version"
-	"github.com/luinunesmeli/goscriba/scriba"
+	"github.com/luinunesmeli/goscriba/pkg/config"
 )
 
 const actualVersion = "0.1.0"
 
 func main() {
-	cfg, err := scriba.LoadConfig()
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		handleErr(err)
 	}

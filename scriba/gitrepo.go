@@ -6,14 +6,16 @@ import (
 	"strings"
 
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
+	gitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
+
+	"github.com/luinunesmeli/goscriba/pkg/config"
 )
 
 type GitRepo struct {
 	repo          *git.Repository
-	cfg           Config
+	cfg           config.Config
 	releaseBranch string
 }
 
@@ -22,7 +24,7 @@ const (
 	releaseBranchName = "refs/heads/release/%s"
 )
 
-func NewGitRepo(cfg Config) (GitRepo, error) {
+func NewGitRepo(cfg config.Config) (GitRepo, error) {
 	repo, err := git.PlainOpen(cfg.Path)
 	if err != nil {
 		return GitRepo{}, fmt.Errorf("actual directory doesn't contains a git repository: %w", err)
@@ -188,7 +190,7 @@ func (g *GitRepo) PushReleaseBranch() Task {
 
 			opts := &git.PushOptions{
 				RemoteName: "origin",
-				RefSpecs:   []config.RefSpec{config.RefSpec(refSpec)},
+				RefSpecs:   []gitconfig.RefSpec{gitconfig.RefSpec(refSpec)},
 				Auth:       defaultAuth(g.cfg.GithubTokenAPI),
 			}
 			if err := g.repo.Push(opts); err != nil {

@@ -1,4 +1,4 @@
-package scriba
+package config
 
 import (
 	"flag"
