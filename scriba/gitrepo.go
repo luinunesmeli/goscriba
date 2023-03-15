@@ -50,12 +50,13 @@ func (g *GitRepo) CheckoutToRelease() Task {
 func (g *GitRepo) CheckoutToBranch(asRelease bool) Func {
 	return func(session Session) (error, string) {
 		name := plumbing.ReferenceName("refs/remotes/origin/develop")
-		var remote, _ = g.repo.Reference(name, true)
+		//var remote, _ = g.repo.Reference(name, true)
+		var ll, _ = g.repo.Reference("refs/remotes/heads/develop", true)
 		local := strings.TrimPrefix(string(name), "refs/remotes/origin/")
 		trackingRef := plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", local))
 
 		// associate the tracking branch with the git sha
-		hr := plumbing.NewHashReference(trackingRef, remote.Hash())
+		hr := plumbing.NewHashReference(trackingRef, ll.Hash())
 		err := g.repo.Storer.SetReference(hr)
 		if err != nil {
 			return err, ""
@@ -73,24 +74,6 @@ func (g *GitRepo) CheckoutToBranch(asRelease bool) Func {
 		if err = tree.Checkout(checkoutOptions); err != nil {
 			return err, ""
 		}
-
-		//tree, err := g.repo.Worktree()
-		//if err != nil {
-		//	return err, ""
-		//}
-		//
-		//branch := developBranchName
-		//if asRelease {
-		//	branch = g.releaseBranch
-		//}
-		//
-		//checkoutOpts := &git.CheckoutOptions{
-		//	Branch: plumbing.ReferenceName(branch),
-		//	//Keep:                      true,
-		//}
-		//if err = tree.Checkout(checkoutOpts); err != nil {
-		//	return err, ""
-		//}
 
 		return nil, ""
 	}
