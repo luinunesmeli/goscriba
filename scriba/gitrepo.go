@@ -51,7 +51,7 @@ func (g *GitRepo) CheckoutToBranch(asRelease bool) Func {
 	return func(session Session) (error, string) {
 		name := plumbing.ReferenceName("refs/remotes/origin/develop")
 		//var remote, _ = g.repo.Reference(name, true)
-		var ll, _ = g.repo.Reference("refs/remotes/heads/develop", true)
+		var ll, _ = g.repo.Reference("origin/develop", true)
 		local := strings.TrimPrefix(string(name), "refs/remotes/origin/")
 		trackingRef := plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", local))
 
