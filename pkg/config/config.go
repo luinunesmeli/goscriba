@@ -17,38 +17,38 @@ const finegrainedToken = "GH_PERSONAL_ACCESS_TOKEN_FINEGRAINED"
 const errMsg = "`%s` or `%s` enviroment variable not found! Please refer to README for help."
 
 type Config struct {
-	ClassicToken  string
-	GranularToken string
-	Path          string
-	Base          string
-	Changelog     string
-	Version       bool
-	AutoPR        bool
-	Autoinstall   bool
+	ClassicToken     string
+	FinegrainedToken string
+	Path             string
+	Base             string
+	Changelog        string
+	Version          bool
+	AutoPR           bool
+	Autoinstall      bool
 }
 
 func LoadConfig() (Config, error) {
-	classic, granular, err := getGHTokenEnv()
+	classic, finegrained, err := getGHTokenEnv()
 	if err != nil {
 		return Config{}, err
 	}
 
 	path, baseBranch, changelog, pr, auto, version := loadCliParams()
 	return Config{
-		ClassicToken:  classic,
-		GranularToken: granular,
-		Path:          path,
-		Base:          baseBranch,
-		Changelog:     changelog,
-		AutoPR:        pr,
-		Autoinstall:   auto,
-		Version:       version,
+		ClassicToken:     classic,
+		FinegrainedToken: finegrained,
+		Path:             path,
+		Base:             baseBranch,
+		Changelog:        changelog,
+		AutoPR:           pr,
+		Autoinstall:      auto,
+		Version:          version,
 	}, nil
 }
 
 func (c Config) AuthStrategy() transport.AuthMethod {
-	if c.GranularToken != "" {
-		return &http.TokenAuth{Token: c.GranularToken}
+	if c.FinegrainedToken != "" {
+		return &http.TokenAuth{Token: c.FinegrainedToken}
 	}
 	return &http.BasicAuth{
 		Username: "token_user", // yes, this can be anything except an empty string
@@ -57,8 +57,8 @@ func (c Config) AuthStrategy() transport.AuthMethod {
 }
 
 func (c Config) GetPersonalAccessToken() string {
-	if c.GranularToken != "" {
-		return c.GranularToken
+	if c.FinegrainedToken != "" {
+		return c.FinegrainedToken
 	}
 	return c.ClassicToken
 }
