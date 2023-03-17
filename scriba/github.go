@@ -6,11 +6,13 @@ import (
 	"net/http"
 
 	"github.com/google/go-github/v50/github"
+
+	"github.com/luinunesmeli/goscriba/pkg/config"
 )
 
 type GithubRepo struct {
 	client        *github.Client
-	config        Config
+	config        config.Config
 	owner         string
 	repo          string
 	LatestTag     string
@@ -19,10 +21,11 @@ type GithubRepo struct {
 }
 
 const (
-	head = "develop"
+	head           = "develop"
+	initialRelease = "0.0.0"
 )
 
-func NewGithubRepo(client *http.Client, cfg Config, owner, repo string) GithubRepo {
+func NewGithubRepo(client *http.Client, cfg config.Config, owner, repo string) GithubRepo {
 	return GithubRepo{
 		client: github.NewClient(client),
 		owner:  owner,
@@ -36,10 +39,15 @@ func (r *GithubRepo) LoadLatestTag(ctx context.Context) Task {
 		Desc: "Loading latest tag",
 		Help: "Couldn't get version. Do you have permission to read this repo?",
 		Func: func(session Session) (error, string) {
-			rel, _, err := r.client.Repositories.GetLatestRelease(ctx, r.owner, r.repo)
+			rel, resp, err := r.client.Repositories.GetLatestRelease(ctx, r.owner, r.repo)
 			if err != nil {
+				if resp.StatusCode == http.StatusNotFound {
+					r.LatestTag = initialRelease
+					return nil, "I haven't found any releases, so looks like this is the first release 🥇!"
+				}
 				return err, ""
 			}
+
 			r.LatestTag = rel.GetTagName()
 			return nil, fmt.Sprintf("Latest tag is %s!", r.LatestTag)
 		},
@@ -51,9 +59,8 @@ func (r *GithubRepo) GetPullRequests(ctx context.Context) Task {
 		Desc: "Comparing `master` and `develop`",
 		Help: "Couldn't get diff!",
 		Func: func(session Session) (error, string) {
-			opts := &github.ListOptions{}
 			commits, _, err := r.client.Repositories.CompareCommits(
-				ctx, r.owner, r.repo, r.config.Base, head, opts,
+				ctx, r.owner, r.repo, r.config.Base, head, &github.ListOptions{},
 			)
 			if err != nil {
 				return err, ""

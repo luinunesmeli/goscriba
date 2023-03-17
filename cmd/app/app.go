@@ -8,11 +8,12 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"golang.org/x/oauth2"
 
+	"github.com/luinunesmeli/goscriba/pkg/config"
 	"github.com/luinunesmeli/goscriba/scriba"
 	"github.com/luinunesmeli/goscriba/view"
 )
 
-func Run(cfg scriba.Config) error {
+func Run(cfg config.Config) error {
 	gitRepo, err := scriba.NewGitRepo(cfg)
 	if err != nil {
 		return err
@@ -30,9 +31,9 @@ func Run(cfg scriba.Config) error {
 	return nil
 }
 
-func buildOauthclient(cfg scriba.Config) *http.Client {
+func buildOauthclient(cfg config.Config) *http.Client {
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: cfg.GithubTokenAPI},
+		&oauth2.Token{AccessToken: cfg.GetPersonalAccessToken()},
 	)
 	tc := oauth2.NewClient(context.Background(), ts)
 	tc.Timeout = time.Second * 5
