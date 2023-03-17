@@ -15,7 +15,7 @@ type TypeMessage struct {
 }
 
 func newVersionList(latestTag string) (*selector.Model, error) {
-	minor, patch, err := nextTags(latestTag)
+	major, minor, patch, err := nextTags(latestTag)
 	if err != nil {
 		return nil, err
 	}
@@ -24,6 +24,7 @@ func newVersionList(latestTag string) (*selector.Model, error) {
 		Data: []interface{}{
 			TypeMessage{Type: "Patch", Version: patch},
 			TypeMessage{Type: "Minor", Version: minor},
+			TypeMessage{Type: "Major", Version: major},
 		},
 		HeaderFunc: selector.DefaultHeaderFuncWithAppend("Select the type of release:"),
 		SelectedFunc: func(m selector.Model, obj interface{}, gdIndex int) string {
@@ -43,19 +44,27 @@ func newVersionList(latestTag string) (*selector.Model, error) {
 	}, nil
 }
 
-func nextTags(latestTag string) (string, string, error) {
+func nextTags(latestTag string) (string, string, string, error) {
 	parts := strings.Split(latestTag, ".")
 
 	patch, err := strconv.Atoi(parts[2])
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
+
 	minor, err := strconv.Atoi(parts[1])
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	major := strings.TrimPrefix(parts[0], "v")
 
-	versionFmt := "%s.%d.%d"
-	return fmt.Sprintf(versionFmt, major, minor+1, 0), fmt.Sprintf(versionFmt, major, minor, patch+1), nil
+	major, err := strconv.Atoi(strings.TrimPrefix(parts[0], "v"))
+	if err != nil {
+		return "", "", "", err
+	}
+
+	versionFmt := "%d.%d.%d"
+	return fmt.Sprintf(versionFmt, major+1, minor, 0),
+		fmt.Sprintf(versionFmt, major, minor+1, 0),
+		fmt.Sprintf(versionFmt, major, minor, patch+1),
+		nil
 }

@@ -21,7 +21,8 @@ type GithubRepo struct {
 }
 
 const (
-	head = "develop"
+	head           = "develop"
+	initialRelease = "0.0.0"
 )
 
 func NewGithubRepo(client *http.Client, cfg config.Config, owner, repo string) GithubRepo {
@@ -38,10 +39,15 @@ func (r *GithubRepo) LoadLatestTag(ctx context.Context) Task {
 		Desc: "Loading latest tag",
 		Help: "Couldn't get version. Do you have permission to read this repo?",
 		Func: func(session Session) (error, string) {
-			rel, _, err := r.client.Repositories.GetLatestRelease(ctx, r.owner, r.repo)
+			rel, resp, err := r.client.Repositories.GetLatestRelease(ctx, r.owner, r.repo)
 			if err != nil {
+				if resp.StatusCode == http.StatusNotFound {
+					r.LatestTag = initialRelease
+					return nil, "I haven't found any releases, so looks like this is the first release 🥇!"
+				}
 				return err, ""
 			}
+
 			r.LatestTag = rel.GetTagName()
 			return nil, fmt.Sprintf("Latest tag is %s!", r.LatestTag)
 		},
