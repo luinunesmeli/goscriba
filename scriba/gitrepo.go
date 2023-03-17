@@ -8,19 +8,22 @@ import (
 	"github.com/go-git/go-git/v5"
 	gitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 
 	"github.com/luinunesmeli/goscriba/pkg/config"
 )
 
 type GitRepo struct {
 	repo          *git.Repository
+	tree          *git.Worktree
 	cfg           config.Config
 	releaseBranch string
 }
 
 const (
-	developBranchName = "refs/heads/develop"
-	releaseBranchName = "refs/heads/release/%s"
+	developBranchName = "develop"
+	releaseHead       = "refs/heads/release/%s"
+	releaseBranch     = "release/%s"
 )
 
 func NewGitRepo(cfg config.Config) (GitRepo, error) {
@@ -28,14 +31,33 @@ func NewGitRepo(cfg config.Config) (GitRepo, error) {
 	if err != nil {
 		return GitRepo{}, fmt.Errorf("actual directory doesn't contains a git repository: %w", err)
 	}
-	return GitRepo{repo: repo, cfg: cfg}, nil
+
+	tree, err := repo.Worktree()
+	tree.Excludes = []gitignore.Pattern{
+		gitignore.ParsePattern("node_modules", []string{}),
+	}
+	if err != nil {
+		return GitRepo{}, fmt.Errorf("actual directory doesn't contains a git repository: %w", err)
+	}
+
+	return GitRepo{repo: repo, tree: tree, cfg: cfg}, nil
 }
 
 func (g *GitRepo) CheckoutToDevelop() Task {
 	return Task{
 		Desc: "Checkout to develop",
 		Help: "Looks like some code wasnt commited at develop.",
-		Func: g.CheckoutToBranch(false),
+		Func: func(session Session) (error, string) {
+			//return gitSwitchWrapper(developBranchName, g.tree), ""
+			branch := "refs/heads/develop"
+			checkoutOpts := &git.CheckoutOptions{
+				Branch: plumbing.ReferenceName(branch),
+			}
+			if err := g.tree.Checkout(checkoutOpts); err != nil {
+				return err, ""
+			}
+			return nil, ""
+		},
 	}
 }
 
@@ -43,39 +65,9 @@ func (g *GitRepo) CheckoutToRelease() Task {
 	return Task{
 		Desc: "Checkout to release branch",
 		Help: "Looks like the release branch isn't creates.",
-		Func: g.CheckoutToBranch(true),
-	}
-}
-
-func (g *GitRepo) CheckoutToBranch(asRelease bool) Func {
-	return func(session Session) (error, string) {
-		name := plumbing.ReferenceName("refs/remotes/origin/develop")
-		//var remote, _ = g.repo.Reference(name, true)
-		var ll, _ = g.repo.Reference(developBranchName, true)
-		local := strings.TrimPrefix(string(name), "refs/remotes/origin/")
-		trackingRef := plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", local))
-
-		// associate the tracking branch with the git sha
-		hr := plumbing.NewHashReference(trackingRef, ll.Hash())
-		err := g.repo.Storer.SetReference(hr)
-		if err != nil {
-			return err, ""
-		}
-
-		// define the checkout option in terms of the created tracking branch
-		checkoutOptions := &git.CheckoutOptions{
-			Branch: plumbing.NewBranchReferenceName(local),
-		}
-
-		tree, err := g.repo.Worktree()
-		if err != nil {
-			return err, ""
-		}
-		if err = tree.Checkout(checkoutOptions); err != nil {
-			return err, ""
-		}
-
-		return nil, ""
+		Func: func(session Session) (error, string) {
+			return gitSwitchWrapper(g.releaseBranch, g.tree), ""
+		},
 	}
 }
 
@@ -84,12 +76,7 @@ func (g *GitRepo) CheckRepoState() Task {
 		Desc: "Checking if current branch is clear",
 		Help: "Commit or stash first your changes before creating a release",
 		Func: func(session Session) (error, string) {
-			tree, err := g.repo.Worktree()
-			if err != nil {
-				return err, ""
-			}
-
-			status, err := gitStatus(tree)
+			status, err := gitStatusWrapper(g.tree)
 			if !status.IsClean() {
 				return errors.New("current branch has uncommited changes"), ""
 			}
@@ -103,23 +90,18 @@ func (g *GitRepo) PullDevelop() Task {
 		Desc: "Pull changes from remote",
 		Help: "Cannot pull changes or there are uncommited changes!",
 		Func: func(session Session) (error, string) {
-			tree, err := g.repo.Worktree()
-			if err != nil {
-				return err, ""
-			}
-
 			opts := git.PullOptions{
+				RemoteName:    "origin",
 				ReferenceName: plumbing.NewBranchReferenceName("develop"),
 				SingleBranch:  true,
 				Auth:          g.cfg.AuthStrategy(),
 			}
-			if err = tree.Pull(&opts); err != nil {
+			if err := g.tree.Pull(&opts); err != nil {
 				if err.Error() == "already up-to-date" {
 					return nil, "Already up-to-date! No changes made!"
 				}
 				return err, ""
 			}
-
 			return nil, ""
 		},
 	}
@@ -135,11 +117,13 @@ func (g *GitRepo) CreateRelease() Task {
 				return nil, ""
 			}
 
-			g.releaseBranch = fmt.Sprintf(releaseBranchName, session.ChosenVersion)
-			ref := plumbing.NewHashReference(plumbing.ReferenceName(g.releaseBranch), headRef.Hash())
+			releaseHeadBranch := fmt.Sprintf(releaseHead, session.ChosenVersion)
+			ref := plumbing.NewHashReference(plumbing.ReferenceName(releaseHeadBranch), headRef.Hash())
 			if err = g.repo.Storer.SetReference(ref); err != nil {
 				return nil, ""
 			}
+
+			g.releaseBranch = fmt.Sprintf(releaseBranch, session.ChosenVersion)
 			return nil, fmt.Sprintf("Created branch release %s", g.releaseBranch)
 		},
 	}
@@ -169,13 +153,8 @@ func (g *GitRepo) Commit() Task {
 		Desc: "Commit changelog changes...",
 		Help: "Some errors found when commiting changes",
 		Func: func(session Session) (error, string) {
-			tree, err := g.repo.Worktree()
-			if err != nil {
-				return err, ""
-			}
-
-			opts := &git.CommitOptions{All: true}
-			hash, err := tree.Commit(fmt.Sprintf("Automatic release commit %s", session.ChosenVersion), opts)
+			opts := &git.CommitOptions{All: false}
+			hash, err := g.tree.Commit(fmt.Sprintf("Automatic release commit %s", session.ChosenVersion), opts)
 			if err != nil {
 				return err, ""
 			}
