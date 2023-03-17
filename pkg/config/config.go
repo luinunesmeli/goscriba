@@ -9,8 +9,11 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport/http"
 )
 
+// https://github.com/settings/tokens
 const classicToken = "GH_PERSONAL_ACCESS_TOKEN_CLASSIC"
-const granularToken = "GH_PERSONAL_ACCESS_TOKEN_GRANULAR"
+
+// https://github.com/settings/tokens?type=beta
+const finegrainedToken = "GH_PERSONAL_ACCESS_TOKEN_FINEGRAINED"
 const errMsg = "`%s` or `%s` enviroment variable not found! Please refer to README for help."
 
 type Config struct {
@@ -79,10 +82,10 @@ func getGHTokenEnv() (string, string, error) {
 		return classic, "", nil
 	}
 
-	granular := os.Getenv(granularToken)
-	if granular != "" {
-		return "", granular, nil
+	finegrained := os.Getenv(finegrainedToken)
+	if finegrained != "" {
+		return "", finegrained, nil
 	}
 
-	return "", "", fmt.Errorf(errMsg, classicToken, granularToken)
+	return "", "", fmt.Errorf(errMsg, classicToken, finegrainedToken)
 }
