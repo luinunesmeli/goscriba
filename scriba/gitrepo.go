@@ -9,6 +9,7 @@ import (
 	gitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 
 	"github.com/luinunesmeli/goscriba/pkg/config"
 )
@@ -18,6 +19,7 @@ type GitRepo struct {
 	tree          *git.Worktree
 	cfg           config.Config
 	releaseBranch string
+	authMethod    transport.AuthMethod
 }
 
 const (
@@ -26,21 +28,21 @@ const (
 	releaseBranch     = "release/%s"
 )
 
-func NewGitRepo(cfg config.Config) (GitRepo, error) {
-	repo, err := git.PlainOpen(cfg.Path)
-	if err != nil {
-		return GitRepo{}, fmt.Errorf("actual directory doesn't contains a git repository: %w", err)
-	}
-
+func NewGitRepo(repo *git.Repository, cfg config.Config, authMethod transport.AuthMethod) (GitRepo, error) {
 	tree, err := repo.Worktree()
-	tree.Excludes = []gitignore.Pattern{
-		gitignore.ParsePattern("node_modules", []string{}),
-	}
 	if err != nil {
 		return GitRepo{}, fmt.Errorf("actual directory doesn't contains a git repository: %w", err)
 	}
+	for _, ignore := range cfg.Gitignore {
+		tree.Excludes = append(tree.Excludes, gitignore.ParsePattern(ignore, []string{}))
+	}
 
-	return GitRepo{repo: repo, tree: tree, cfg: cfg}, nil
+	return GitRepo{
+		repo:       repo,
+		tree:       tree,
+		cfg:        cfg,
+		authMethod: authMethod,
+	}, nil
 }
 
 func (g *GitRepo) CheckoutToDevelop() Task {
@@ -48,15 +50,7 @@ func (g *GitRepo) CheckoutToDevelop() Task {
 		Desc: "Checkout to develop",
 		Help: "Looks like some code wasnt commited at develop.",
 		Func: func(session Session) (error, string) {
-			//return gitSwitchWrapper(developBranchName, g.tree), ""
-			branch := "refs/heads/develop"
-			checkoutOpts := &git.CheckoutOptions{
-				Branch: plumbing.ReferenceName(branch),
-			}
-			if err := g.tree.Checkout(checkoutOpts); err != nil {
-				return err, ""
-			}
-			return nil, ""
+			return gitSwitchWrapper(developBranchName, g.tree), ""
 		},
 	}
 }
@@ -90,17 +84,18 @@ func (g *GitRepo) PullDevelop() Task {
 		Desc: "Pull changes from remote",
 		Help: "Cannot pull changes or there are uncommited changes!",
 		Func: func(session Session) (error, string) {
-			opts := git.PullOptions{
-				RemoteName:    "origin",
-				ReferenceName: plumbing.NewBranchReferenceName("develop"),
-				SingleBranch:  true,
-				Auth:          g.cfg.AuthStrategy(),
+			opts := git.FetchOptions{
+				RemoteName: "origin",
+				RefSpecs: []gitconfig.RefSpec{
+					gitconfig.RefSpec("+refs/heads/develop:refs/remotes/origin/develop"),
+				},
+				Auth: g.authMethod,
 			}
-			if err := g.tree.Pull(&opts); err != nil {
+
+			if err := g.repo.Fetch(&opts); err != nil {
 				if err.Error() == "already up-to-date" {
 					return nil, "Already up-to-date! No changes made!"
 				}
-				return err, ""
 			}
 			return nil, ""
 		},
@@ -178,7 +173,7 @@ func (g *GitRepo) PushReleaseBranch() Task {
 			opts := &git.PushOptions{
 				RemoteName: "origin",
 				RefSpecs:   []gitconfig.RefSpec{gitconfig.RefSpec(refSpec)},
-				Auth:       g.cfg.AuthStrategy(),
+				Auth:       g.authMethod,
 			}
 			if err := g.repo.Push(opts); err != nil {
 				return err, ""
