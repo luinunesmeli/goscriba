@@ -8,7 +8,7 @@ import (
 	"github.com/mritd/bubbles/common"
 	"github.com/mritd/bubbles/selector"
 
-	"github.com/luinunesmeli/goscriba/scriba"
+	"github.com/luinunesmeli/goscriba/tomaster"
 )
 
 type (
@@ -21,7 +21,7 @@ type (
 		confirm             *selector.Model
 		show                bool
 		latestTag           string
-		prs                 scriba.PRs
+		prs                 tomaster.PRs
 		chosenTag           string
 		yes                 bool
 		showTagSelection    bool
@@ -101,18 +101,18 @@ func (f *form) View() string {
 	return ""
 }
 
-func (f *form) Show() scriba.Task {
-	return scriba.Task{
+func (f *form) Show() tomaster.Task {
+	return tomaster.Task{
 		Desc: "Select your version",
 		Help: "Show form",
-		Func: func(_ scriba.Session) (error, string) {
+		Func: func(_ tomaster.Session) (error, string) {
 			f.show = true
 			return nil, ""
 		},
 	}
 }
 
-func (f *form) SetLatest(tag string, prs scriba.PRs) error {
+func (f *form) SetLatest(tag string, prs tomaster.PRs) error {
 	f.latestTag = tag
 	f.prs = prs
 
