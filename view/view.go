@@ -14,14 +14,14 @@ type (
 		stepResultList tea.Model
 		form           *form
 		gitrepo        *tomaster.GitRepo
-		github         *tomaster.GithubRepo
+		github         *tomaster.GithubClient
 		changelog      *tomaster.Changelog
 		manager        tomaster.Manager
 		config         config.Config
 	}
 )
 
-func NewView(gitrepo *tomaster.GitRepo, github *tomaster.GithubRepo, changelog *tomaster.Changelog, config config.Config) View {
+func NewView(gitrepo *tomaster.GitRepo, github *tomaster.GithubClient, changelog *tomaster.Changelog, config config.Config) View {
 	v := View{
 		gitrepo:        gitrepo,
 		github:         github,

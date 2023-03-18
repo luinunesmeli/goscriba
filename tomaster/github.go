@@ -10,7 +10,7 @@ import (
 	"github.com/luinunesmeli/goscriba/pkg/config"
 )
 
-type GithubRepo struct {
+type GithubClient struct {
 	client        *github.Client
 	config        config.Config
 	owner         string
@@ -25,8 +25,8 @@ const (
 	initialRelease = "0.0.0"
 )
 
-func NewGithubRepo(client *github.Client, cfg config.Config, owner, repo string) GithubRepo {
-	return GithubRepo{
+func NewGithubClient(client *github.Client, cfg config.Config, owner, repo string) GithubClient {
+	return GithubClient{
 		client: client,
 		owner:  owner,
 		repo:   repo,
@@ -34,7 +34,7 @@ func NewGithubRepo(client *github.Client, cfg config.Config, owner, repo string)
 	}
 }
 
-func (r *GithubRepo) LoadLatestTag(ctx context.Context) Task {
+func (r *GithubClient) LoadLatestTag(ctx context.Context) Task {
 	return Task{
 		Desc: "Loading latest tag",
 		Help: "Couldn't get version. Do you have permission to read this repo?",
@@ -54,7 +54,7 @@ func (r *GithubRepo) LoadLatestTag(ctx context.Context) Task {
 	}
 }
 
-func (r *GithubRepo) GetPullRequests(ctx context.Context) Task {
+func (r *GithubClient) GetPullRequests(ctx context.Context) Task {
 	return Task{
 		Desc: "Comparing `master` and `develop`",
 		Help: "Couldn't get diff!",
@@ -89,7 +89,7 @@ func (r *GithubRepo) GetPullRequests(ctx context.Context) Task {
 	}
 }
 
-func (r *GithubRepo) CreatePullRequest(ctx context.Context) Task {
+func (r *GithubClient) CreatePullRequest(ctx context.Context) Task {
 	return Task{
 		Desc: "Generating the Pull Request for you.",
 		Help: "Couldn't generate the Pull Request!",
