@@ -50,13 +50,7 @@ func (g *GitRepo) CheckoutToDevelop() Task {
 		Desc: "Checkout to develop",
 		Help: "Looks like some code wasnt commited at develop.",
 		Func: func(session Session) (error, string) {
-			checkoutOpts := &git.CheckoutOptions{
-				Branch: plumbing.ReferenceName("refs/heads/develop"),
-			}
-			if err := g.tree.Checkout(checkoutOpts); err != nil {
-				return err, ""
-			}
-			return nil, ""
+			return gitSwitchWrapper("develop", g.tree), ""
 		},
 	}
 }
@@ -66,13 +60,7 @@ func (g *GitRepo) CheckoutToRelease() Task {
 		Desc: "Checkout to release branch",
 		Help: "Looks like the release branch isn't creates.",
 		Func: func(session Session) (error, string) {
-			checkoutOpts := &git.CheckoutOptions{
-				Branch: plumbing.ReferenceName("refs/heads/" + g.releaseBranch),
-			}
-			if err := g.tree.Checkout(checkoutOpts); err != nil {
-				return err, ""
-			}
-			return nil, ""
+			return gitSwitchWrapper(g.releaseBranch, g.tree), ""
 		},
 	}
 }
@@ -96,23 +84,7 @@ func (g *GitRepo) PullDevelop() Task {
 		Desc: "Pull changes from remote",
 		Help: "Cannot pull changes or there are uncommited changes!",
 		Func: func(session Session) (error, string) {
-			opts := git.FetchOptions{
-				RemoteName: "origin",
-				RefSpecs: []gitconfig.RefSpec{
-					gitconfig.RefSpec("+refs/heads/develop:refs/remotes/origin/develop"),
-				},
-				Auth:            g.authMethod,
-				Tags:            git.NoTags,
-				InsecureSkipTLS: false,
-			}
-
-			if err := g.repo.Fetch(&opts); err != nil {
-				if err.Error() == "already up-to-date" {
-					return nil, "Already up-to-date! No changes made!"
-				}
-				return err, ""
-			}
-			return nil, ""
+			return gitPulDevelopWrapper(), ""
 		},
 	}
 }
@@ -163,13 +135,14 @@ func (g *GitRepo) Commit() Task {
 		Desc: "Commit changelog changes...",
 		Help: "Some errors found when commiting changes",
 		Func: func(session Session) (error, string) {
-			if err := g.tree.AddWithOptions(&git.AddOptions{Glob: g.cfg.Changelog}); err != nil {
-				return err, ""
-			}
+			//if err := g.tree.AddWithOptions(&git.AddOptions{Glob: g.cfg.Changelog}); err != nil {
+			//	return err, ""
+			//}
 
 			opts := &git.CommitOptions{
-				All: false,
+				All: true,
 			}
+
 			hash, err := g.tree.Commit(fmt.Sprintf("Automatic release commit %s", session.ChosenVersion), opts)
 			if err != nil {
 				return err, ""

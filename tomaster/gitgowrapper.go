@@ -50,3 +50,11 @@ func gitSwitchWrapper(branch string, tree *git.Worktree) error {
 
 	return nil
 }
+
+func gitPulDevelopWrapper() error {
+	c := exec.Command("git", "pull", "origin", "develop")
+	if _, err := c.Output(); err != nil {
+		return err
+	}
+	return nil
+}

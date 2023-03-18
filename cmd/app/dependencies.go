@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/google/go-github/v50/github"
 	"golang.org/x/oauth2"
 
@@ -15,7 +17,14 @@ import (
 )
 
 func buildGitRepo(cfg config.Config) (tomaster.GitRepo, error) {
-	repo, err := git.PlainOpen(cfg.Path)
+	//repo, err := git.PlainOpen(cfg.Path)
+	storer := memory.NewStorage()
+	fs := memfs.New()
+	repo, err := git.Clone(storer, fs, &git.CloneOptions{
+		URL:  "https://github.com/luinunesmeli/goscriba.git",
+		Auth: auth.AuthMethod(cfg),
+	})
+
 	if err != nil {
 		return tomaster.GitRepo{}, fmt.Errorf("actual directory doesn't contains a git repository: %w", err)
 	}
