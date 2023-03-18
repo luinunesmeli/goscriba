@@ -41,7 +41,7 @@ func (r *GithubClient) LoadLatestTag(ctx context.Context) Task {
 		Func: func(session Session) (error, string) {
 			rel, resp, err := r.client.Repositories.GetLatestRelease(ctx, r.owner, r.repo)
 			if err != nil {
-				if resp.StatusCode == http.StatusNotFound {
+				if resp != nil && resp.StatusCode == http.StatusNotFound {
 					r.LatestTag = initialRelease
 					return nil, "I haven't found any releases, so looks like this is the first release 🥇!"
 				}

@@ -1,6 +1,9 @@
 package app
 
 import (
+	"context"
+	"time"
+
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/luinunesmeli/goscriba/pkg/config"
@@ -14,10 +17,13 @@ func Run(cfg config.Config) error {
 	}
 	owner, repoName := gitRepo.GetRepoInfo()
 
-	githubClient := buildGithubClient(cfg, owner, repoName)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	defer cancel()
+
+	githubClient := buildGithubClient(ctx, cfg, owner, repoName)
 	changelog := buildChangelog(cfg)
 
-	p := tea.NewProgram(view.NewView(&gitRepo, &githubClient, &changelog, cfg))
+	p := tea.NewProgram(view.NewView(ctx, &gitRepo, &githubClient, &changelog, cfg))
 	if _, err = p.Run(); err != nil {
 		return err
 	}
