@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/go-git/go-git/v5"
 	"github.com/google/go-github/v50/github"
@@ -29,12 +28,11 @@ func buildGitRepo(cfg config.Config) (tomaster.GitRepo, error) {
 	return gitRepo, nil
 }
 
-func buildGithubClient(cfg config.Config, owner, repo string) tomaster.GithubClient {
+func buildGithubClient(ctx context.Context, cfg config.Config, owner, repo string) tomaster.GithubClient {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: cfg.GetPersonalAccessToken()},
 	)
-	tc := oauth2.NewClient(context.Background(), ts)
-	tc.Timeout = time.Second * 5
+	tc := oauth2.NewClient(ctx, ts)
 
 	return tomaster.NewGithubClient(github.NewClient(tc), cfg, owner, repo)
 }

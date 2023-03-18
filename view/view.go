@@ -21,7 +21,7 @@ type (
 	}
 )
 
-func NewView(gitrepo *tomaster.GitRepo, github *tomaster.GithubClient, changelog *tomaster.Changelog, config config.Config) View {
+func NewView(ctx context.Context, gitrepo *tomaster.GitRepo, github *tomaster.GithubClient, changelog *tomaster.Changelog, config config.Config) View {
 	v := View{
 		gitrepo:        gitrepo,
 		github:         github,
@@ -31,7 +31,6 @@ func NewView(gitrepo *tomaster.GitRepo, github *tomaster.GithubClient, changelog
 		config:         config,
 	}
 
-	ctx := context.Background()
 	steps := []tomaster.Task{
 		v.changelog.LoadChangelog(),
 		v.gitrepo.CheckRepoState(),
