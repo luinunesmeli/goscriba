@@ -1,4 +1,4 @@
-package scriba
+package tomaster
 
 type templateData struct {
 	Version      string

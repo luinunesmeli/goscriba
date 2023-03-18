@@ -6,7 +6,7 @@ import (
 	"github.com/mritd/bubbles/common"
 	"github.com/mritd/bubbles/selector"
 
-	"github.com/luinunesmeli/goscriba/scriba"
+	"github.com/luinunesmeli/goscriba/tomaster"
 )
 
 type TypeMessage struct {
@@ -15,7 +15,7 @@ type TypeMessage struct {
 }
 
 func newVersionList(latestTag string) (*selector.Model, error) {
-	major, minor, patch, err := scriba.NextReleases(latestTag)
+	major, minor, patch, err := tomaster.NextReleases(latestTag)
 	if err != nil {
 		return nil, err
 	}
