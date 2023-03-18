@@ -25,9 +25,9 @@ const (
 	initialRelease = "0.0.0"
 )
 
-func NewGithubRepo(client *http.Client, cfg config.Config, owner, repo string) GithubRepo {
+func NewGithubRepo(client *github.Client, cfg config.Config, owner, repo string) GithubRepo {
 	return GithubRepo{
-		client: github.NewClient(client),
+		client: client,
 		owner:  owner,
 		repo:   repo,
 		config: cfg,
