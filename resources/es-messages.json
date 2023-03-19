@@ -1,0 +1,12 @@
+{
+  "exampleVariableLine": {
+    "description": "this line salutes the user and says how many commits he commited but not pushed yet",
+    "one": "hola, como estas? tiene {{.Number}} commit sin pushear",
+    "other": "hola, como estas? tiene {{.Number}} commits sin pushear"
+  },
+  "exampleLine": {
+    "description": "this line salutes the user using its username",
+    "one": "hola, como estas {{.Name}}?"
+  },
+  "simplifiedLine": "buenos días, {{.Name}}!"
+}
