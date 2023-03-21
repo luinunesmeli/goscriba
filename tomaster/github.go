@@ -11,13 +11,12 @@ import (
 )
 
 type GithubClient struct {
-	client        *github.Client
-	config        config.Config
-	owner         string
-	repo          string
-	LatestTag     string
-	ActualPRs     PRs
-	ChangelogBody string
+	client    *github.Client
+	config    config.Config
+	owner     string
+	repo      string
+	LatestTag string
+	ActualPRs PRs
 }
 
 const (
@@ -54,7 +53,7 @@ func (r *GithubClient) LoadLatestTag(ctx context.Context) Task {
 	}
 }
 
-func (r *GithubClient) GetPullRequests(ctx context.Context) Task {
+func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 	return Task{
 		Desc: "Comparing `master` and `develop`",
 		Help: "Couldn't get diff!",
@@ -97,12 +96,13 @@ func (r *GithubClient) CreatePullRequest(ctx context.Context) Task {
 			title := fmt.Sprintf("Release version %s", session.ChosenVersion)
 			base := r.config.Base
 			head := fmt.Sprintf("release/%s", session.ChosenVersion)
+			changelog := session.Changelog
 
 			newPR := &github.NewPullRequest{
 				Title: &title,
 				Head:  &head,
 				Base:  &base,
-				Body:  &r.ChangelogBody,
+				Body:  &changelog,
 			}
 			pr, _, err := r.client.PullRequests.Create(ctx, r.owner, r.repo, newPR)
 			if err != nil {
