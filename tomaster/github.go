@@ -1,4 +1,4 @@
-package scriba
+package tomaster
 
 import (
 	"context"
@@ -10,14 +10,13 @@ import (
 	"github.com/luinunesmeli/goscriba/pkg/config"
 )
 
-type GithubRepo struct {
-	client        *github.Client
-	config        config.Config
-	owner         string
-	repo          string
-	LatestTag     string
-	ActualPRs     PRs
-	ChangelogBody string
+type GithubClient struct {
+	client    *github.Client
+	config    config.Config
+	owner     string
+	repo      string
+	LatestTag string
+	ActualPRs PRs
 }
 
 const (
@@ -25,23 +24,23 @@ const (
 	initialRelease = "0.0.0"
 )
 
-func NewGithubRepo(client *http.Client, cfg config.Config, owner, repo string) GithubRepo {
-	return GithubRepo{
-		client: github.NewClient(client),
+func NewGithubClient(client *github.Client, cfg config.Config, owner, repo string) GithubClient {
+	return GithubClient{
+		client: client,
 		owner:  owner,
 		repo:   repo,
 		config: cfg,
 	}
 }
 
-func (r *GithubRepo) LoadLatestTag(ctx context.Context) Task {
+func (r *GithubClient) LoadLatestTag(ctx context.Context) Task {
 	return Task{
 		Desc: "Loading latest tag",
 		Help: "Couldn't get version. Do you have permission to read this repo?",
 		Func: func(session Session) (error, string) {
 			rel, resp, err := r.client.Repositories.GetLatestRelease(ctx, r.owner, r.repo)
 			if err != nil {
-				if resp.StatusCode == http.StatusNotFound {
+				if resp != nil && resp.StatusCode == http.StatusNotFound {
 					r.LatestTag = initialRelease
 					return nil, "I haven't found any releases, so looks like this is the first release 🥇!"
 				}
@@ -54,7 +53,7 @@ func (r *GithubRepo) LoadLatestTag(ctx context.Context) Task {
 	}
 }
 
-func (r *GithubRepo) GetPullRequests(ctx context.Context) Task {
+func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 	return Task{
 		Desc: "Comparing `master` and `develop`",
 		Help: "Couldn't get diff!",
@@ -89,7 +88,7 @@ func (r *GithubRepo) GetPullRequests(ctx context.Context) Task {
 	}
 }
 
-func (r *GithubRepo) CreatePullRequest(ctx context.Context) Task {
+func (r *GithubClient) CreatePullRequest(ctx context.Context) Task {
 	return Task{
 		Desc: "Generating the Pull Request for you.",
 		Help: "Couldn't generate the Pull Request!",
@@ -97,12 +96,13 @@ func (r *GithubRepo) CreatePullRequest(ctx context.Context) Task {
 			title := fmt.Sprintf("Release version %s", session.ChosenVersion)
 			base := r.config.Base
 			head := fmt.Sprintf("release/%s", session.ChosenVersion)
+			changelog := session.Changelog
 
 			newPR := &github.NewPullRequest{
 				Title: &title,
 				Head:  &head,
 				Base:  &base,
-				Body:  &r.ChangelogBody,
+				Body:  &changelog,
 			}
 			pr, _, err := r.client.PullRequests.Create(ctx, r.owner, r.repo, newPR)
 			if err != nil {

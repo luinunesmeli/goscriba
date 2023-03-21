@@ -6,22 +6,22 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/luinunesmeli/goscriba/pkg/config"
-	"github.com/luinunesmeli/goscriba/scriba"
+	"github.com/luinunesmeli/goscriba/tomaster"
 )
 
 type (
 	View struct {
 		stepResultList tea.Model
 		form           *form
-		gitrepo        *scriba.GitRepo
-		github         *scriba.GithubRepo
-		changelog      *scriba.Changelog
-		manager        scriba.Manager
+		gitrepo        *tomaster.GitRepo
+		github         *tomaster.GithubClient
+		changelog      *tomaster.Changelog
+		manager        tomaster.Manager
 		config         config.Config
 	}
 )
 
-func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo, changelog *scriba.Changelog, config config.Config) View {
+func NewView(ctx context.Context, gitrepo *tomaster.GitRepo, github *tomaster.GithubClient, changelog *tomaster.Changelog, config config.Config) View {
 	v := View{
 		gitrepo:        gitrepo,
 		github:         github,
@@ -31,27 +31,18 @@ func NewView(gitrepo *scriba.GitRepo, github *scriba.GithubRepo, changelog *scri
 		config:         config,
 	}
 
-	ctx := context.Background()
-	steps := []scriba.Task{
+	steps := []tomaster.Task{
 		v.changelog.LoadChangelog(),
-		v.gitrepo.CheckRepoState(),
-		v.gitrepo.CheckoutToDevelop(),
-		v.gitrepo.PullDevelop(),
 		v.github.LoadLatestTag(ctx),
-		v.github.GetPullRequests(ctx),
+		v.github.DiffBaseHead(ctx),
 		v.form.Show(),
 		v.gitrepo.CreateRelease(),
-		v.gitrepo.CheckoutToRelease(),
-		v.changelog.Update(),
 		v.gitrepo.Commit(),
+		v.gitrepo.PushReleaseBranch(),
+		v.github.CreatePullRequest(ctx),
 	}
-	if config.AutoPR {
-		steps = append(steps, []scriba.Task{
-			v.gitrepo.PushReleaseBranch(),
-			v.github.CreatePullRequest(ctx),
-		}...)
-	}
-	v.manager = scriba.NewManager(steps...)
+
+	v.manager = tomaster.NewManager(steps...)
 	return v
 }
 
@@ -72,7 +63,8 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stepResultList, _ = m.stepResultList.Update(startStepMsg{step: m.manager.Actual()})
 			return m, newStateMsg(executeStep)
 		case executeStep:
-			result := m.manager.RunActual(scriba.NewSession(m.form.chosenTag, m.github.ActualPRs))
+			session := tomaster.NewSession(m.form.chosenTag, m.github.ActualPRs, m.changelog.GeneratedChangelog)
+			result := m.manager.RunActual(session)
 			m.stepResultList, cmd = m.stepResultList.Update(executeStepMsg{result: result})
 			if result.Err != nil {
 				return m, tea.Quit

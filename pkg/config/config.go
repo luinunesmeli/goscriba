@@ -1,12 +1,11 @@
 package config
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"os"
-
-	"github.com/go-git/go-git/v5/plumbing/transport"
-	"github.com/go-git/go-git/v5/plumbing/transport/http"
+	"strings"
 )
 
 // https://github.com/settings/tokens
@@ -22,6 +21,7 @@ type Config struct {
 	Path             string
 	Base             string
 	Changelog        string
+	Gitignore        []string
 	Version          bool
 	AutoPR           bool
 	Autoinstall      bool
@@ -34,6 +34,12 @@ func LoadConfig() (Config, error) {
 	}
 
 	path, baseBranch, changelog, pr, auto, version := loadCliParams()
+
+	content, err := readGitignore(path)
+	if err != nil {
+		return Config{}, err
+	}
+
 	return Config{
 		ClassicToken:     classic,
 		FinegrainedToken: finegrained,
@@ -43,17 +49,8 @@ func LoadConfig() (Config, error) {
 		AutoPR:           pr,
 		Autoinstall:      auto,
 		Version:          version,
+		Gitignore:        content,
 	}, nil
-}
-
-func (c Config) AuthStrategy() transport.AuthMethod {
-	if c.FinegrainedToken != "" {
-		return &http.TokenAuth{Token: c.FinegrainedToken}
-	}
-	return &http.BasicAuth{
-		Username: "token_user", // yes, this can be anything except an empty string
-		Password: c.ClassicToken,
-	}
 }
 
 func (c Config) GetPersonalAccessToken() string {
@@ -64,7 +61,7 @@ func (c Config) GetPersonalAccessToken() string {
 }
 
 func loadCliParams() (path, base, changelog string, pr, auto, version bool) {
-	flag.BoolVar(&pr, "autopr", false, "automatically generate Pull Request (optional)")
+	flag.BoolVar(&pr, "autopr", true, "automatically generate Pull Request (optional)")
 	flag.BoolVar(&auto, "install", false, "automatically install ToMaster on environment")
 	flag.BoolVar(&version, "version", false, "show actual version")
 	flag.StringVar(&path, "path", "./", "project path you want to generate a release")
@@ -88,4 +85,28 @@ func getGHTokenEnv() (string, string, error) {
 	}
 
 	return "", "", fmt.Errorf(errMsg, classicToken, finegrainedToken)
+}
+
+func readGitignore(path string) ([]string, error) {
+	file, err := os.Open(path + "/.gitignore")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+
+	var filtered []string
+	for _, line := range lines {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		filtered = append(filtered, line)
+	}
+
+	return filtered, scanner.Err()
 }

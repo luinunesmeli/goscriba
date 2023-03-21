@@ -1,4 +1,4 @@
-package scriba
+package tomaster
 
 import (
 	"os/exec"
@@ -48,5 +48,13 @@ func gitSwitchWrapper(branch string, tree *git.Worktree) error {
 		return err
 	}
 
+	return nil
+}
+
+func gitPulDevelopWrapper() error {
+	c := exec.Command("git", "pull", "origin", "develop")
+	if _, err := c.Output(); err != nil {
+		return err
+	}
 	return nil
 }
