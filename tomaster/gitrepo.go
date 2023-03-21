@@ -1,7 +1,6 @@
 package tomaster
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -9,6 +8,7 @@ import (
 	gitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
+	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 
 	"github.com/luinunesmeli/goscriba/pkg/config"
@@ -20,15 +20,16 @@ type GitRepo struct {
 	cfg           config.Config
 	releaseBranch string
 	authMethod    transport.AuthMethod
+	changelog     *Changelog
 }
 
 const (
-	developBranchName = "develop"
-	releaseHead       = "refs/heads/release/%s"
-	releaseBranch     = "release/%s"
+	developRef  = "refs/remotes/origin/develop"
+	releaseRef  = "refs/heads/release/%s"
+	pushRefSpec = "refs/heads/release/%s:refs/heads/release/%s"
 )
 
-func NewGitRepo(repo *git.Repository, cfg config.Config, authMethod transport.AuthMethod) (GitRepo, error) {
+func NewGitRepo(repo *git.Repository, changelog *Changelog, cfg config.Config, authMethod transport.AuthMethod) (GitRepo, error) {
 	tree, err := repo.Worktree()
 	if err != nil {
 		return GitRepo{}, fmt.Errorf("actual directory doesn't contains a git repository: %w", err)
@@ -42,51 +43,8 @@ func NewGitRepo(repo *git.Repository, cfg config.Config, authMethod transport.Au
 		tree:       tree,
 		cfg:        cfg,
 		authMethod: authMethod,
+		changelog:  changelog,
 	}, nil
-}
-
-func (g *GitRepo) CheckoutToDevelop() Task {
-	return Task{
-		Desc: "Checkout to develop",
-		Help: "Looks like some code wasnt commited at develop.",
-		Func: func(session Session) (error, string) {
-			return gitSwitchWrapper("develop", g.tree), ""
-		},
-	}
-}
-
-func (g *GitRepo) CheckoutToRelease() Task {
-	return Task{
-		Desc: "Checkout to release branch",
-		Help: "Looks like the release branch isn't creates.",
-		Func: func(session Session) (error, string) {
-			return gitSwitchWrapper(g.releaseBranch, g.tree), ""
-		},
-	}
-}
-
-func (g *GitRepo) CheckRepoState() Task {
-	return Task{
-		Desc: "Checking if current branch is clear",
-		Help: "Commit or stash first your changes before creating a release",
-		Func: func(session Session) (error, string) {
-			status, err := gitStatusWrapper(g.tree)
-			if !status.IsClean() {
-				return errors.New("current branch has uncommited changes"), ""
-			}
-			return err, ""
-		},
-	}
-}
-
-func (g *GitRepo) PullDevelop() Task {
-	return Task{
-		Desc: "Pull changes from remote",
-		Help: "Cannot pull changes or there are uncommited changes!",
-		Func: func(session Session) (error, string) {
-			return gitPulDevelopWrapper(), ""
-		},
-	}
 }
 
 func (g *GitRepo) CreateRelease() Task {
@@ -94,38 +52,15 @@ func (g *GitRepo) CreateRelease() Task {
 		Desc: "Create release...",
 		Help: "Couldn't create release!",
 		Func: func(session Session) (error, string) {
-			headRef, err := g.repo.Head()
+			headRef, err := storer.ResolveReference(g.repo.Storer, developRef)
 			if err != nil {
 				return nil, ""
 			}
 
-			releaseHeadBranch := fmt.Sprintf(releaseHead, session.ChosenVersion)
-			ref := plumbing.NewHashReference(plumbing.ReferenceName(releaseHeadBranch), headRef.Hash())
-			if err = g.repo.Storer.SetReference(ref); err != nil {
-				return nil, ""
-			}
+			refName := plumbing.ReferenceName(fmt.Sprintf(releaseRef, session.ChosenVersion))
+			ref := plumbing.NewHashReference(refName, headRef.Hash())
 
-			g.releaseBranch = fmt.Sprintf(releaseBranch, session.ChosenVersion)
-			return nil, fmt.Sprintf("Created branch release %s", g.releaseBranch)
-		},
-	}
-}
-
-func (g *GitRepo) ReleaseExists(tag string) Task {
-	return Task{
-		Desc: fmt.Sprintf("Create release/%s", tag),
-		Help: "Couldn't create release!",
-		Func: func(session Session) (error, string) {
-			branchTag := fmt.Sprintf("refs/heads/release/%s", tag)
-			branch, err := g.repo.Branch(branchTag)
-			if err != nil {
-				return nil, ""
-			}
-
-			if branch != nil {
-				return fmt.Errorf("`%s` already exists", branchTag), ""
-			}
-			return nil, ""
+			return g.repo.Storer.SetReference(ref), ""
 		},
 	}
 }
@@ -135,20 +70,23 @@ func (g *GitRepo) Commit() Task {
 		Desc: "Commit changelog changes...",
 		Help: "Some errors found when commiting changes",
 		Func: func(session Session) (error, string) {
-			//if err := g.tree.AddWithOptions(&git.AddOptions{Glob: g.cfg.Changelog}); err != nil {
-			//	return err, ""
-			//}
-
-			opts := &git.CommitOptions{
-				All: true,
+			localRef := plumbing.NewBranchReferenceName(fmt.Sprintf("release/%s", session.ChosenVersion))
+			if err := g.tree.Checkout(&git.CheckoutOptions{Branch: localRef}); err != nil {
+				return nil, ""
 			}
 
-			hash, err := g.tree.Commit(fmt.Sprintf("Automatic release commit %s", session.ChosenVersion), opts)
-			if err != nil {
+			if err := g.changelog.UpdateChangelog(session, g.tree); err != nil {
 				return err, ""
 			}
 
-			return nil, fmt.Sprintf("Commited with hash `%s`", hash.String())
+			if _, err := g.tree.Add(g.cfg.Changelog); err != nil {
+				return err, ""
+			}
+
+			opts := &git.CommitOptions{}
+			hash, err := g.tree.Commit(fmt.Sprintf("Automatic release commit %s", session.ChosenVersion), opts)
+
+			return err, fmt.Sprintf("Commited with hash `%s`", hash)
 		},
 	}
 }
@@ -158,22 +96,14 @@ func (g *GitRepo) PushReleaseBranch() Task {
 		Desc: "Push release to remote",
 		Help: "Couldn't push release to remote!",
 		Func: func(session Session) (error, string) {
-			refSpec := fmt.Sprintf(
-				"refs/heads/release/%s:refs/heads/release/%s",
-				session.ChosenVersion,
-				session.ChosenVersion,
-			)
-
-			opts := &git.PushOptions{
+			refSpec := fmt.Sprintf(pushRefSpec, session.ChosenVersion, session.ChosenVersion)
+			err := g.repo.Push(&git.PushOptions{
 				RemoteName: "origin",
 				RefSpecs:   []gitconfig.RefSpec{gitconfig.RefSpec(refSpec)},
 				Auth:       g.authMethod,
-			}
-			if err := g.repo.Push(opts); err != nil {
-				return err, ""
-			}
-
-			return nil, fmt.Sprintf("Pushed release/%s", refSpec)
+				Force:      true,
+			})
+			return err, fmt.Sprintf("Pushed release/%s", session.ChosenVersion)
 		},
 	}
 }

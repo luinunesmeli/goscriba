@@ -61,7 +61,7 @@ func (c Config) GetPersonalAccessToken() string {
 }
 
 func loadCliParams() (path, base, changelog string, pr, auto, version bool) {
-	flag.BoolVar(&pr, "autopr", false, "automatically generate Pull Request (optional)")
+	flag.BoolVar(&pr, "autopr", true, "automatically generate Pull Request (optional)")
 	flag.BoolVar(&auto, "install", false, "automatically install ToMaster on environment")
 	flag.BoolVar(&version, "version", false, "show actual version")
 	flag.StringVar(&path, "path", "./", "project path you want to generate a release")

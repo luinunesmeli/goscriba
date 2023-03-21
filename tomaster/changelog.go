@@ -7,13 +7,15 @@ import (
 	"os"
 	"regexp"
 	"text/template"
+
+	"github.com/go-git/go-git/v5"
 )
 
 type (
 	Changelog struct {
-		filename  string
-		content   []string
-		Generated string
+		filename           string
+		content            []string
+		GeneratedChangelog string
 	}
 )
 
@@ -30,7 +32,7 @@ func NewChangelog(filename string) Changelog {
 func (c *Changelog) LoadChangelog() Task {
 	return Task{
 		Desc: "Load actual changelog",
-		Help: fmt.Sprintf("Changelog should exist at %s", c.filename),
+		Help: fmt.Sprintf("Not found! Changelog should exist at %s.", c.filename),
 		Func: func(session Session) (error, string) {
 			file, err := os.Open(c.filename)
 			if err != nil {
@@ -47,28 +49,22 @@ func (c *Changelog) LoadChangelog() Task {
 	}
 }
 
-func (c *Changelog) Update() Task {
-	return Task{
-		Desc: "Load actual changelog",
-		Help: "Changelog should exist at ",
-		Func: func(session Session) (error, string) {
-			t, err := template.New("changelog").Parse(changelogTemplate)
-			if err != nil {
-				return err, ""
-			}
-
-			buf := bytes.NewBufferString("")
-			err = t.Execute(buf, newTemplateData(session.ChosenVersion, session.PRs))
-
-			c.Generated = buf.String()
-			return writeChangelogContent(c.filename, c.Generated), ""
-		},
+func (c *Changelog) UpdateChangelog(session Session, tree *git.Worktree) error {
+	t, err := template.New("changelog").Parse(changelogTemplate)
+	if err != nil {
+		return err
 	}
+
+	buf := bytes.NewBufferString("")
+	err = t.Execute(buf, newTemplateData(session.ChosenVersion, session.PRs))
+
+	c.GeneratedChangelog = buf.String()
+	return writeChangelogContent(c.filename, c.GeneratedChangelog, tree)
 }
 
-func writeChangelogContent(path string, content string) error {
+func writeChangelogContent(path string, content string, tree *git.Worktree) error {
 	// temporary file
-	temp, err := os.Create(tempPath)
+	temp, err := tree.Filesystem.Create(tempPath)
 	if err != nil {
 		return err
 	}
@@ -81,10 +77,10 @@ func writeChangelogContent(path string, content string) error {
 	}
 	defer file.Close()
 
-	if _, err = temp.WriteString(content); err != nil {
+	if _, err = temp.Write([]byte(content)); err != nil {
 		return err
 	}
-	if _, err = temp.WriteString("\n"); err != nil {
+	if _, err = temp.Write([]byte("\n")); err != nil {
 		return err
 	}
 
@@ -94,10 +90,10 @@ func writeChangelogContent(path string, content string) error {
 		if match, _ := regexp.Match("#.Changelog", []byte(text)); match {
 			continue
 		}
-		if _, err = temp.WriteString(text); err != nil {
+		if _, err = temp.Write([]byte(text)); err != nil {
 			return err
 		}
-		if _, err = temp.WriteString("\n"); err != nil {
+		if _, err = temp.Write([]byte("\n")); err != nil {
 			return err
 		}
 	}
@@ -105,9 +101,6 @@ func writeChangelogContent(path string, content string) error {
 	if err = scanner.Err(); err != nil {
 		return err
 	}
-	if err = temp.Sync(); err != nil {
-		return err
-	}
 
-	return os.Rename(tempPath, path)
+	return tree.Filesystem.Rename(tempPath, path)
 }

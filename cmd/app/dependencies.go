@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/go-git/go-billy/v5/memfs"
@@ -16,12 +17,17 @@ import (
 	"github.com/luinunesmeli/goscriba/pkg/config"
 )
 
-func buildGitRepo(cfg config.Config) (tomaster.GitRepo, error) {
-	//repo, err := git.PlainOpen(cfg.Path)
+func buildGitRepo(cfg config.Config, changelog *tomaster.Changelog) (tomaster.GitRepo, error) {
+	url, err := getRemoteURL(cfg)
+	if err != nil {
+		return tomaster.GitRepo{}, err
+	}
+
 	storer := memory.NewStorage()
 	fs := memfs.New()
+
 	repo, err := git.Clone(storer, fs, &git.CloneOptions{
-		URL:  "https://github.com/luinunesmeli/goscriba.git",
+		URL:  url,
 		Auth: auth.AuthMethod(cfg),
 	})
 
@@ -29,7 +35,7 @@ func buildGitRepo(cfg config.Config) (tomaster.GitRepo, error) {
 		return tomaster.GitRepo{}, fmt.Errorf("actual directory doesn't contains a git repository: %w", err)
 	}
 
-	gitRepo, err := tomaster.NewGitRepo(repo, cfg, auth.AuthMethod(cfg))
+	gitRepo, err := tomaster.NewGitRepo(repo, changelog, cfg, auth.AuthMethod(cfg))
 	if err != nil {
 		return tomaster.GitRepo{}, err
 	}
@@ -48,4 +54,19 @@ func buildGithubClient(ctx context.Context, cfg config.Config, owner, repo strin
 
 func buildChangelog(cfg config.Config) tomaster.Changelog {
 	return tomaster.NewChangelog(cfg.Changelog)
+}
+
+func getRemoteURL(cfg config.Config) (string, error) {
+	plainRepo, err := git.PlainOpen(cfg.Path)
+	if err != nil {
+		return "", err
+	}
+	repoCfg, err := plainRepo.Config()
+	if err != nil {
+		return "", err
+	}
+	if remotes, ok := repoCfg.Remotes["origin"]; ok && len(remotes.URLs) > 0 {
+		return repoCfg.Remotes["origin"].URLs[0], nil
+	}
+	return "", errors.New("could not load remote URL")
 }

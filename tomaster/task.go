@@ -31,6 +31,7 @@ type (
 	Session struct {
 		ChosenVersion string
 		PRs           PRs
+		Changelog     string
 	}
 )
 
@@ -68,9 +69,10 @@ func (t Task) Run(session Session) Result {
 	}
 }
 
-func NewSession(chosenVersion string, prs PRs) Session {
+func NewSession(chosenVersion string, prs PRs, changelog string) Session {
 	return Session{
 		ChosenVersion: chosenVersion,
 		PRs:           prs,
+		Changelog:     changelog,
 	}
 }
