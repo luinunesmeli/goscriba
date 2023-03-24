@@ -18,6 +18,7 @@ type (
 		changelog      *tomaster.Changelog
 		manager        tomaster.Manager
 		config         config.Config
+		session        tomaster.Session
 	}
 )
 
@@ -36,6 +37,7 @@ func NewView(ctx context.Context, gitrepo *tomaster.GitRepo, github *tomaster.Gi
 		v.github.LoadLatestTag(ctx),
 		v.github.DiffBaseHead(ctx),
 		v.form.Show(),
+		v.form.GetSelectedVersion(),
 		v.gitrepo.CreateRelease(),
 		v.gitrepo.Commit(),
 		v.gitrepo.PushReleaseBranch(),
@@ -63,17 +65,15 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stepResultList, _ = m.stepResultList.Update(startStepMsg{step: m.manager.Actual()})
 			return m, newStateMsg(executeStep)
 		case executeStep:
-			session := tomaster.NewSession(m.form.chosenTag, m.github.ActualPRs, m.changelog.GeneratedChangelog)
-			result := m.manager.RunActual(session)
+			result := m.manager.RunActual(m.session)
+			m.session = result.Session
+
 			m.stepResultList, cmd = m.stepResultList.Update(executeStepMsg{result: result})
 			if result.Err != nil {
 				return m, tea.Quit
 			}
 
-			if m.form.show && m.github.LatestTag != "" {
-				if err := m.form.SetLatest(m.github.LatestTag, m.github.ActualPRs); err != nil {
-					return m, tea.Quit
-				}
+			if m.form.show {
 				m.form, cmd = m.form.Update(msg)
 				return m, cmd
 			}
@@ -94,7 +94,7 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	if m.form.show && m.github.LatestTag != "" {
+	if m.form.show {
 		m.form, cmd = m.form.Update(msg)
 	}
 

@@ -13,9 +13,8 @@ import (
 
 type (
 	Changelog struct {
-		filename           string
-		content            []string
-		GeneratedChangelog string
+		filename string
+		content  []string
 	}
 )
 
@@ -33,10 +32,10 @@ func (c *Changelog) LoadChangelog() Task {
 	return Task{
 		Desc: "Load actual changelog",
 		Help: fmt.Sprintf("Not found! Changelog should exist at %s.", c.filename),
-		Func: func(session Session) (error, string) {
+		Func: func(session Session) (error, string, Session) {
 			file, err := os.Open(c.filename)
 			if err != nil {
-				return err, ""
+				return err, "", session
 			}
 			defer file.Close()
 
@@ -44,22 +43,21 @@ func (c *Changelog) LoadChangelog() Task {
 			for scanner.Scan() {
 				c.content = append(c.content, scanner.Text())
 			}
-			return scanner.Err(), ""
+			return scanner.Err(), "", session
 		},
 	}
 }
 
-func (c *Changelog) UpdateChangelog(session Session, tree *git.Worktree) error {
+func (c *Changelog) UpdateChangelog(session Session, author string, tree *git.Worktree) (error, string) {
 	t, err := template.New("changelog").Parse(changelogTemplate)
 	if err != nil {
-		return err
+		return err, ""
 	}
 
 	buf := bytes.NewBufferString("")
-	err = t.Execute(buf, newTemplateData(session.ChosenVersion, session.PRs))
+	err = t.Execute(buf, newTemplateData(session.ChosenVersion, author, session.PRs))
 
-	c.GeneratedChangelog = buf.String()
-	return writeChangelogContent(c.filename, c.GeneratedChangelog, tree)
+	return writeChangelogContent(c.filename, buf.String(), tree), buf.String()
 }
 
 func writeChangelogContent(path string, content string, tree *git.Worktree) error {

@@ -51,16 +51,16 @@ func (g *GitRepo) CreateRelease() Task {
 	return Task{
 		Desc: "Create release...",
 		Help: "Couldn't create release!",
-		Func: func(session Session) (error, string) {
+		Func: func(session Session) (error, string, Session) {
 			headRef, err := storer.ResolveReference(g.repo.Storer, developRef)
 			if err != nil {
-				return nil, ""
+				return nil, "", session
 			}
 
 			refName := plumbing.ReferenceName(fmt.Sprintf(releaseRef, session.ChosenVersion))
 			ref := plumbing.NewHashReference(refName, headRef.Hash())
 
-			return g.repo.Storer.SetReference(ref), ""
+			return g.repo.Storer.SetReference(ref), "", session
 		},
 	}
 }
@@ -69,24 +69,29 @@ func (g *GitRepo) Commit() Task {
 	return Task{
 		Desc: "Commit changelog changes...",
 		Help: "Some errors found when commiting changes",
-		Func: func(session Session) (error, string) {
-			localRef := plumbing.NewBranchReferenceName(fmt.Sprintf("release/%s", session.ChosenVersion))
-			if err := g.tree.Checkout(&git.CheckoutOptions{Branch: localRef}); err != nil {
-				return nil, ""
+		Func: func(session Session) (error, string, Session) {
+			repoConfig, err := g.repo.ConfigScoped(gitconfig.SystemScope)
+			if err != nil {
+				return err, "", session
 			}
 
-			if err := g.changelog.UpdateChangelog(session, g.tree); err != nil {
-				return err, ""
+			localRef := plumbing.NewBranchReferenceName(fmt.Sprintf("release/%s", session.ChosenVersion))
+			if err := g.tree.Checkout(&git.CheckoutOptions{Branch: localRef}); err != nil {
+				return nil, "", session
+			}
+
+			if err, session.Changelog = g.changelog.UpdateChangelog(session, repoConfig.User.Name, g.tree); err != nil {
+				return err, "", session
 			}
 
 			if _, err := g.tree.Add(g.cfg.Changelog); err != nil {
-				return err, ""
+				return err, "", session
 			}
 
 			opts := &git.CommitOptions{}
 			hash, err := g.tree.Commit(fmt.Sprintf("Automatic release commit %s", session.ChosenVersion), opts)
 
-			return err, fmt.Sprintf("Commited with hash `%s`", hash)
+			return err, fmt.Sprintf("Commited with hash `%s`", hash), session
 		},
 	}
 }
@@ -95,7 +100,7 @@ func (g *GitRepo) PushReleaseBranch() Task {
 	return Task{
 		Desc: "Push release to remote",
 		Help: "Couldn't push release to remote!",
-		Func: func(session Session) (error, string) {
+		Func: func(session Session) (error, string, Session) {
 			refSpec := fmt.Sprintf(pushRefSpec, session.ChosenVersion, session.ChosenVersion)
 			err := g.repo.Push(&git.PushOptions{
 				RemoteName: "origin",
@@ -103,7 +108,7 @@ func (g *GitRepo) PushReleaseBranch() Task {
 				Auth:       g.authMethod,
 				Force:      true,
 			})
-			return err, fmt.Sprintf("Pushed release/%s", session.ChosenVersion)
+			return err, fmt.Sprintf("Pushed release/%s", session.ChosenVersion), session
 		},
 	}
 }
