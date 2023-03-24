@@ -2,6 +2,7 @@ package tomaster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -83,6 +84,11 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 					})
 				}
 			}
+
+			if len(session.PRs) == 0 {
+				return errors.New("no closed pull requests on `develop` can be merged on `master`"), "", session
+			}
+
 			return nil, "", session
 		},
 	}
