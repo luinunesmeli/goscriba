@@ -15,12 +15,11 @@ import (
 )
 
 type GitRepo struct {
-	repo          *git.Repository
-	tree          *git.Worktree
-	cfg           config.Config
-	releaseBranch string
-	authMethod    transport.AuthMethod
-	changelog     *Changelog
+	repo       *git.Repository
+	tree       *git.Worktree
+	cfg        config.Config
+	authMethod transport.AuthMethod
+	changelog  *Changelog
 }
 
 const (
