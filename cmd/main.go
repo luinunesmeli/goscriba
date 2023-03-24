@@ -10,7 +10,7 @@ import (
 	"github.com/luinunesmeli/goscriba/pkg/config"
 )
 
-const actualVersion = "0.1.0"
+const actualVersion = "1.0.0"
 
 func main() {
 	cfg, err := config.LoadConfig()

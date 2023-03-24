@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -20,8 +19,7 @@ func Run(cfg config.Config) error {
 
 	owner, repoName := gitRepo.GetRepoInfo()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
-	defer cancel()
+	ctx := context.Background()
 
 	githubClient := buildGithubClient(ctx, cfg, owner, repoName)
 
