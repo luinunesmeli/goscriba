@@ -5,7 +5,7 @@ import (
 )
 
 type (
-	Func func(Session) (error, string)
+	Func func(Session) (error, string, Session)
 
 	Task struct {
 		Desc     string
@@ -20,6 +20,7 @@ type (
 		Err     error
 		Ok      string
 		Elapsed float64
+		Session Session
 	}
 
 	Manager struct {
@@ -29,9 +30,11 @@ type (
 	}
 
 	Session struct {
-		ChosenVersion string
-		PRs           PRs
-		Changelog     string
+		ChosenVersion  string
+		LastestVersion string
+		PRs            PRs
+		Changelog      string
+		Author         string
 	}
 )
 
@@ -45,11 +48,9 @@ func (t *Manager) Actual() Task {
 
 func (t *Manager) RunActual(session Session) Result {
 	t.actual, t.tasks = t.tasks[0], t.tasks[1:]
-
 	if t.rollback != nil {
 		t.rollback = append(t.rollback, t.actual.Rollback)
 	}
-
 	return t.actual.Run(session)
 }
 
@@ -59,13 +60,14 @@ func (t *Manager) Empty() bool {
 
 func (t Task) Run(session Session) Result {
 	now := time.Now()
-	err, msg := t.Func(session)
+	err, msg, session := t.Func(session)
 	return Result{
 		Desc:    t.Desc,
 		Help:    t.Help,
 		Err:     err,
 		Ok:      msg,
 		Elapsed: time.Since(now).Seconds(),
+		Session: session,
 	}
 }
 

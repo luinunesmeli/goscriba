@@ -105,24 +105,32 @@ func (f *form) Show() tomaster.Task {
 	return tomaster.Task{
 		Desc: "Select your version",
 		Help: "Show form",
-		Func: func(_ tomaster.Session) (error, string) {
+		Func: func(session tomaster.Session) (error, string, tomaster.Session) {
 			f.show = true
-			return nil, ""
+			f.latestTag = session.LastestVersion
+			f.prs = session.PRs
+
+			list, err := newVersionList(f.latestTag)
+			if err != nil {
+				return err, "", session
+			}
+			f.showTagSelection = true
+			f.tagSelect = list
+
+			return nil, "", session
 		},
 	}
 }
 
-func (f *form) SetLatest(tag string, prs tomaster.PRs) error {
-	f.latestTag = tag
-	f.prs = prs
-
-	list, err := newVersionList(f.latestTag)
-	if err != nil {
-		return err
+func (f *form) GetSelectedVersion() tomaster.Task {
+	return tomaster.Task{
+		Desc: "A new version number was selected!",
+		Help: "Version is empty!",
+		Func: func(session tomaster.Session) (error, string, tomaster.Session) {
+			session.ChosenVersion = f.chosenTag
+			return nil, "", session
+		},
 	}
-	f.showTagSelection = true
-	f.tagSelect = list
-	return err
 }
 
 func newConfirmTag() tea.Cmd {
