@@ -1,39 +1,49 @@
 package tomaster
 
+import (
+	"time"
+)
+
 type templateData struct {
 	Version      string
+	Now          string
+	Author       string
 	Features     PRs
 	Fix          PRs
 	Enhancements PRs
 }
 
-func newTemplateData(version string, prs PRs) templateData {
+func newTemplateData(version, author string, prs PRs) templateData {
+	data := time.Now()
 	return templateData{
 		Version:      version,
+		Author:       author,
 		Features:     prs.Filter(Feature),
 		Enhancements: prs.Filter(Enhancement),
 		Fix:          prs.Filter(Fix),
+		Now:          data.Format("2006-01-02"),
 	}
 }
 
-const changelogTemplate = `
-## Version {{ .Version }}
-{{ if gt (len .Features) 0 }}
+const changelogTemplate = `## Version {{ .Version }}
+**Created at {{ .Now }} by {{ .Author }}**
+
+
+{{- if .Features }}
 ### Features
 	{{ range $pr := .Features }}
 * [{{ $pr.Title }}]({{ $pr.PRLink }}) by {{ $pr.Author }}
 	{{ end }}
-{{ end }}
-{{ if gt (len .Enhancements) 0 }}
+{{- end }}
+{{- if .Enhancements }}
 ### Enhancements
 	{{ range $pr := .Enhancements }}
 * [{{ $pr.Title }}]({{ $pr.PRLink }}) by {{ $pr.Author }}
 	{{ end }}
-{{ end }}
-{{ if gt (len .Enhancements) 0 }}
-### Enhancements
-	{{ range $pr := .Enhancements }}
+{{- end }}
+{{- if .Fix }}
+### Fixes
+	{{ range $pr := .Fix }}
 * [{{ $pr.Title }}]({{ $pr.PRLink }}) by {{ $pr.Author }}
 	{{ end }}
-{{ end }}
-`
+{{- end }}`
