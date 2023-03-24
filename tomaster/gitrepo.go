@@ -31,9 +31,11 @@ const (
 func NewGitRepo(repo *git.Repository, changelog *Changelog, cfg config.Config, authMethod transport.AuthMethod) (GitRepo, error) {
 	tree, err := repo.Worktree()
 	if err != nil {
-		return GitRepo{}, fmt.Errorf("actual directory doesn't contains a git repository: %w", err)
+		return GitRepo{}, err
 	}
-	for _, ignore := range cfg.Gitignore {
+
+	ignoreList, err := cfg.ReadGitignore()
+	for _, ignore := range ignoreList {
 		tree.Excludes = append(tree.Excludes, gitignore.ParsePattern(ignore, []string{}))
 	}
 

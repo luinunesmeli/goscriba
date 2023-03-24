@@ -19,7 +19,7 @@ func main() {
 	}
 
 	switch {
-	case cfg.Autoinstall:
+	case cfg.Install:
 		err = install.Run()
 	case cfg.Version:
 		err = version.Run(actualVersion)
