@@ -21,10 +21,8 @@ type Config struct {
 	Path             string
 	Base             string
 	Changelog        string
-	Gitignore        []string
 	Version          bool
-	AutoPR           bool
-	Autoinstall      bool
+	Install          bool
 }
 
 func LoadConfig() (Config, error) {
@@ -33,12 +31,7 @@ func LoadConfig() (Config, error) {
 		return Config{}, err
 	}
 
-	path, baseBranch, changelog, pr, auto, version := loadCliParams()
-
-	content, err := readGitignore(path)
-	if err != nil {
-		return Config{}, err
-	}
+	path, baseBranch, changelog, install, version := loadCliParams()
 
 	return Config{
 		ClassicToken:     classic,
@@ -46,10 +39,8 @@ func LoadConfig() (Config, error) {
 		Path:             path,
 		Base:             baseBranch,
 		Changelog:        changelog,
-		AutoPR:           pr,
-		Autoinstall:      auto,
+		Install:          install,
 		Version:          version,
-		Gitignore:        content,
 	}, nil
 }
 
@@ -60,35 +51,8 @@ func (c Config) GetPersonalAccessToken() string {
 	return c.ClassicToken
 }
 
-func loadCliParams() (path, base, changelog string, pr, auto, version bool) {
-	flag.BoolVar(&pr, "autopr", true, "automatically generate Pull Request (optional)")
-	flag.BoolVar(&auto, "install", false, "automatically install ToMaster on environment")
-	flag.BoolVar(&version, "version", false, "show actual version")
-	flag.StringVar(&path, "path", "./", "project path you want to generate a release")
-	flag.StringVar(&base, "base", "master", "provide the base: master or main")
-	flag.StringVar(&changelog, "changelog", path+"docs/guide/pages/changelog.md", "provide the changelog filename")
-
-	flag.Parse()
-
-	return path, base, changelog, pr, auto, version
-}
-
-func getGHTokenEnv() (string, string, error) {
-	classic := os.Getenv(classicToken)
-	if classic != "" {
-		return classic, "", nil
-	}
-
-	finegrained := os.Getenv(finegrainedToken)
-	if finegrained != "" {
-		return "", finegrained, nil
-	}
-
-	return "", "", fmt.Errorf(errMsg, classicToken, finegrainedToken)
-}
-
-func readGitignore(path string) ([]string, error) {
-	file, err := os.Open(path + "/.gitignore")
+func (c Config) ReadGitignore() ([]string, error) {
+	file, err := os.Open(c.Path + "/.gitignore")
 	if err != nil {
 		return nil, err
 	}
@@ -109,4 +73,30 @@ func readGitignore(path string) ([]string, error) {
 	}
 
 	return filtered, scanner.Err()
+}
+
+func loadCliParams() (path, base, changelog string, install, version bool) {
+	flag.BoolVar(&install, "install", false, "automatically install ToMaster on environment")
+	flag.BoolVar(&version, "version", false, "show actual version")
+	flag.StringVar(&path, "path", "./", "project path you want to generate a release")
+	flag.StringVar(&base, "base", "master", "provide the base: master or main")
+	flag.StringVar(&changelog, "changelog", path+"docs/guide/pages/changelog.md", "provide the changelog filename")
+
+	flag.Parse()
+
+	return path, base, changelog, install, version
+}
+
+func getGHTokenEnv() (string, string, error) {
+	classic := os.Getenv(classicToken)
+	if classic != "" {
+		return classic, "", nil
+	}
+
+	finegrained := os.Getenv(finegrainedToken)
+	if finegrained != "" {
+		return "", finegrained, nil
+	}
+
+	return "", "", fmt.Errorf(errMsg, classicToken, finegrainedToken)
 }
