@@ -1,7 +1,9 @@
-package tomaster
+package task
 
 import (
 	"time"
+
+	"github.com/luinunesmeli/goscriba/tomaster"
 )
 
 type (
@@ -31,7 +33,7 @@ type (
 	Session struct {
 		ChosenVersion  string
 		LastestVersion string
-		PRs            PRs
+		PRs            tomaster.PRs
 		Changelog      string
 		Author         string
 	}

@@ -6,6 +6,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/luinunesmeli/goscriba/pkg/config"
+	"github.com/luinunesmeli/goscriba/pkg/task"
 	"github.com/luinunesmeli/goscriba/tomaster"
 )
 
@@ -16,9 +17,9 @@ type (
 		gitrepo        *tomaster.GitRepo
 		github         *tomaster.GithubClient
 		changelog      *tomaster.Changelog
-		manager        tomaster.Manager
+		manager        task.Manager
 		config         config.Config
-		session        tomaster.Session
+		session        task.Session
 	}
 )
 
@@ -32,7 +33,7 @@ func NewView(ctx context.Context, gitrepo *tomaster.GitRepo, github *tomaster.Gi
 		config:         config,
 	}
 
-	steps := []tomaster.Task{
+	steps := []task.Task{
 		v.changelog.LoadChangelog(),
 		v.github.LoadLatestTag(ctx),
 		v.github.DiffBaseHead(ctx),
@@ -44,7 +45,7 @@ func NewView(ctx context.Context, gitrepo *tomaster.GitRepo, github *tomaster.Gi
 		v.github.CreatePullRequest(ctx),
 	}
 
-	v.manager = tomaster.NewManager(steps...)
+	v.manager = task.NewManager(steps...)
 	return v
 }
 

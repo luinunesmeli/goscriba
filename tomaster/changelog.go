@@ -9,6 +9,8 @@ import (
 	"text/template"
 
 	"github.com/go-git/go-git/v5"
+
+	"github.com/luinunesmeli/goscriba/pkg/task"
 )
 
 type (
@@ -28,11 +30,11 @@ func NewChangelog(filename string) Changelog {
 	}
 }
 
-func (c *Changelog) LoadChangelog() Task {
-	return Task{
+func (c *Changelog) LoadChangelog() task.Task {
+	return task.Task{
 		Desc: "Load actual changelog",
 		Help: fmt.Sprintf("Not found! Changelog should exist at %s.", c.filename),
-		Func: func(session Session) (error, string, Session) {
+		Func: func(session task.Session) (error, string, task.Session) {
 			file, err := os.Open(c.filename)
 			if err != nil {
 				return err, "", session
@@ -48,7 +50,7 @@ func (c *Changelog) LoadChangelog() Task {
 	}
 }
 
-func (c *Changelog) UpdateChangelog(session Session, author string, tree *git.Worktree) (error, string) {
+func (c *Changelog) UpdateChangelog(session task.Session, author string, tree *git.Worktree) (error, string) {
 	t, err := template.New("changelog").Parse(changelogTemplate)
 	if err != nil {
 		return err, ""

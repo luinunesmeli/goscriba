@@ -12,6 +12,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/transport"
 
 	"github.com/luinunesmeli/goscriba/pkg/config"
+	"github.com/luinunesmeli/goscriba/pkg/task"
 )
 
 type GitRepo struct {
@@ -48,11 +49,11 @@ func NewGitRepo(repo *git.Repository, changelog *Changelog, cfg config.Config, a
 	}, nil
 }
 
-func (g *GitRepo) CreateRelease() Task {
-	return Task{
+func (g *GitRepo) CreateRelease() task.Task {
+	return task.Task{
 		Desc: "Create release...",
 		Help: "Couldn't create release!",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(session task.Session) (error, string, task.Session) {
 			headRef, err := storer.ResolveReference(g.repo.Storer, developRef)
 			if err != nil {
 				return nil, "", session
@@ -66,11 +67,11 @@ func (g *GitRepo) CreateRelease() Task {
 	}
 }
 
-func (g *GitRepo) Commit() Task {
-	return Task{
+func (g *GitRepo) Commit() task.Task {
+	return task.Task{
 		Desc: "Commit changelog changes...",
 		Help: "Some errors found when commiting changes",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(session task.Session) (error, string, task.Session) {
 			repoConfig, err := g.repo.ConfigScoped(gitconfig.SystemScope)
 			if err != nil {
 				return err, "", session
@@ -97,11 +98,11 @@ func (g *GitRepo) Commit() Task {
 	}
 }
 
-func (g *GitRepo) PushReleaseBranch() Task {
-	return Task{
+func (g *GitRepo) PushReleaseBranch() task.Task {
+	return task.Task{
 		Desc: "Push release to remote",
 		Help: "Couldn't push release to remote!",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(session task.Session) (error, string, task.Session) {
 			refSpec := fmt.Sprintf(pushRefSpec, session.ChosenVersion, session.ChosenVersion)
 			err := g.repo.Push(&git.PushOptions{
 				RemoteName: "origin",

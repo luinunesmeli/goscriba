@@ -8,6 +8,7 @@ import (
 	"github.com/mritd/bubbles/common"
 	"github.com/mritd/bubbles/selector"
 
+	"github.com/luinunesmeli/goscriba/pkg/task"
 	"github.com/luinunesmeli/goscriba/tomaster"
 )
 
@@ -101,11 +102,11 @@ func (f *form) View() string {
 	return ""
 }
 
-func (f *form) Show() tomaster.Task {
-	return tomaster.Task{
+func (f *form) Show() task.Task {
+	return task.Task{
 		Desc: "Select your version",
 		Help: "Show form",
-		Func: func(session tomaster.Session) (error, string, tomaster.Session) {
+		Func: func(session task.Session) (error, string, task.Session) {
 			f.show = true
 			f.latestTag = session.LastestVersion
 			f.prs = session.PRs
@@ -122,11 +123,11 @@ func (f *form) Show() tomaster.Task {
 	}
 }
 
-func (f *form) GetSelectedVersion() tomaster.Task {
-	return tomaster.Task{
+func (f *form) GetSelectedVersion() task.Task {
+	return task.Task{
 		Desc: "A new version number was selected!",
 		Help: "Version is empty!",
-		Func: func(session tomaster.Session) (error, string, tomaster.Session) {
+		Func: func(session task.Session) (error, string, task.Session) {
 			session.ChosenVersion = f.chosenTag
 			return nil, "", session
 		},

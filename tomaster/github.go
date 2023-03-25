@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-github/v50/github"
 
 	"github.com/luinunesmeli/goscriba/pkg/config"
+	"github.com/luinunesmeli/goscriba/pkg/task"
 )
 
 type GithubClient struct {
@@ -32,11 +33,11 @@ func NewGithubClient(client *github.Client, cfg config.Config, owner, repo strin
 	}
 }
 
-func (r *GithubClient) LoadLatestTag(ctx context.Context) Task {
-	return Task{
+func (r *GithubClient) LoadLatestTag(ctx context.Context) task.Task {
+	return task.Task{
 		Desc: "Loading latest tag",
 		Help: "Couldn't get version. Do you have permission to read this repo?",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(session task.Session) (error, string, task.Session) {
 			rel, resp, err := r.client.Repositories.GetLatestRelease(ctx, r.owner, r.repo)
 			if err != nil {
 				if resp != nil && resp.StatusCode == http.StatusNotFound {
@@ -52,11 +53,11 @@ func (r *GithubClient) LoadLatestTag(ctx context.Context) Task {
 	}
 }
 
-func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
-	return Task{
+func (r *GithubClient) DiffBaseHead(ctx context.Context) task.Task {
+	return task.Task{
 		Desc: "Comparing `master` and `develop`",
 		Help: "Couldn't get diff!",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(session task.Session) (error, string, task.Session) {
 			commits, _, err := r.client.Repositories.CompareCommits(
 				ctx, r.owner, r.repo, r.config.Base, head, &github.ListOptions{},
 			)
@@ -94,11 +95,11 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 	}
 }
 
-func (r *GithubClient) CreatePullRequest(ctx context.Context) Task {
-	return Task{
+func (r *GithubClient) CreatePullRequest(ctx context.Context) task.Task {
+	return task.Task{
 		Desc: "Generating the Pull Request for you.",
 		Help: "Couldn't generate the Pull Request!",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(session task.Session) (error, string, task.Session) {
 			title := fmt.Sprintf("Release version %s", session.ChosenVersion)
 			base := r.config.Base
 			head := fmt.Sprintf("release/%s", session.ChosenVersion)
