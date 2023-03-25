@@ -1,11 +1,9 @@
 package install
 
 import (
-	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
+
+	"github.com/go-git/go-billy/v5"
 )
 
 var (
@@ -14,43 +12,29 @@ var (
 	symlinkName = "/usr/local/bin/tomaster"
 )
 
-func Run() error {
-	targetDir, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-	targetDir += tomasterDir
+func Run(home, binaryPath string, fs billy.Filesystem) error {
+	targetDir := home + tomasterDir
 
-	res, err := filepath.EvalSymlinks(symlinkName)
-	if res != "" {
-		return errors.New("ToMaster already installed, installation aborted!\n")
+	if s, _ := fs.Readlink(symlinkName); s != "" {
+		fmt.Println("Already instaled, performing a reinstall")
 	}
-	if err != nil && !strings.HasSuffix(err.Error(), "no such file or directory") {
+
+	fmt.Printf("\nCreating dir: %s\n", targetDir)
+	if err := fs.MkdirAll(targetDir, 0644); err != nil {
 		return err
 	}
 
-	fmt.Printf("The installation process will create a symlink at `%s`\n", symlinkName)
-	if _, err := os.ReadDir(targetDir); err != nil {
-		if err := os.Mkdir(targetDir, 0777); err != nil {
-			return err
-		}
-	}
-
-	path, err := os.Executable()
-	if err != nil {
+	tomasterbinDir := targetDir + "/" + tomasterBin
+	fmt.Printf("Moving binary to: %s/tomaster\n", targetDir)
+	if err := fs.Rename(binaryPath, tomasterbinDir); err != nil {
 		return err
 	}
 
-	tomasterBinDir := fmt.Sprintf("%s/%s", targetDir, tomasterBin)
-	fmt.Printf("Moving binary to `%s`\n", tomasterBinDir)
-	if err := os.Rename(path, tomasterBinDir); err != nil {
+	fmt.Printf("Creating symbolic link: %s -> %s\n", tomasterbinDir, symlinkName)
+	if err := fs.Symlink(tomasterbinDir, symlinkName); err != nil && err.Error() != "file already exists" {
 		return err
 	}
 
-	if err := os.Symlink(tomasterBinDir, symlinkName); err != nil {
-		return err
-	}
-	fmt.Printf("Symlink created at `%s`\nInstallation succesfull!\nYou can now call `tomaster` on shell\n", symlinkName)
-
+	fmt.Printf("Symlink created at `%s`\nInstallation succesfull!\nYou can now call `tomaster` on shell\n\n", symlinkName)
 	return nil
 }

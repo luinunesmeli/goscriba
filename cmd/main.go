@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/go-git/go-billy/v5/osfs"
+
 	"github.com/luinunesmeli/goscriba/cmd/app"
 	"github.com/luinunesmeli/goscriba/cmd/install"
 	"github.com/luinunesmeli/goscriba/cmd/version"
@@ -20,7 +22,13 @@ func main() {
 
 	switch {
 	case cfg.Install:
-		err = install.Run()
+		targetDir, err := os.UserHomeDir()
+		if err == nil {
+			path, err := os.Executable()
+			if err == nil {
+				err = install.Run(targetDir, path, osfs.New("/"))
+			}
+		}
 	case cfg.Version:
 		err = version.Run(actualVersion)
 	default:
