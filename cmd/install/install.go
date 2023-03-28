@@ -17,6 +17,9 @@ func Run(home, binaryPath string, fs billy.Filesystem) error {
 
 	if s, _ := fs.Readlink(symlinkName); s != "" {
 		fmt.Println("Already instaled, performing a reinstall")
+		if err := fs.Remove(symlinkName); err != nil {
+			return err
+		}
 	}
 
 	fmt.Printf("\nCreating dir: %s\n", targetDir)
