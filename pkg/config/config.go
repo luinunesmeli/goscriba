@@ -76,11 +76,15 @@ func (c Config) ReadGitignore() ([]string, error) {
 }
 
 func loadCliParams() (path, base, changelog string, install, version bool) {
+	dir, _ := os.Getwd()
+	basePath := dir + "/"
+	changelogPath := basePath + "docs/guide/pages/changelog.md"
+
 	flag.BoolVar(&install, "install", false, "automatically install ToMaster on environment")
 	flag.BoolVar(&version, "version", false, "show actual version")
-	flag.StringVar(&path, "path", "./", "project path you want to generate a release")
+	flag.StringVar(&path, "path", basePath, "project path you want to generate a release")
 	flag.StringVar(&base, "base", "master", "provide the base: master or main")
-	flag.StringVar(&changelog, "changelog", path+"docs/guide/pages/changelog.md", "provide the changelog filename")
+	flag.StringVar(&changelog, "changelog", changelogPath, "provide the changelog filename")
 
 	flag.Parse()
 
