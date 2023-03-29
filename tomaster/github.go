@@ -74,11 +74,11 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 						continue
 					}
 
-					session.PRs = session.PRs.Append(PR{
+					session.PRs = append(session.PRs, PR{
 						PRType: prType,
 						Title:  p.GetTitle(),
 						PRLink: p.GetLinks().GetHTML().GetHRef(),
-						Author: commit.GetAuthor().GetLogin(),
+						Author: authorName(commit),
 						Number: p.GetNumber(),
 						Ref:    p.GetHead().GetRef(),
 					})
@@ -117,5 +117,16 @@ func (r *GithubClient) CreatePullRequest(ctx context.Context) Task {
 
 			return nil, fmt.Sprintf("Access at: %s", pr.GetHTMLURL()), session
 		},
+	}
+}
+
+func authorName(commit *github.RepositoryCommit) string {
+	switch {
+	case commit.GetAuthor().GetName() != "":
+		return commit.GetAuthor().GetName()
+	case commit.GetCommitter().GetName() != "":
+		return commit.GetCommitter().GetName()
+	default:
+		return "@" + commit.GetAuthor().GetLogin()
 	}
 }
