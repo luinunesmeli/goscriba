@@ -62,17 +62,11 @@ func (p PRs) AsMap() map[PRType]PRs {
 	return out
 }
 
-func (p PRs) Append(value PR) PRs {
-	if len(p) == 0 {
-		return PRs{value}
-	}
-
-	out := PRs{}
+func (p PRs) Exist(number int) bool {
 	for _, pr := range p {
-		if pr.Number == value.Number {
-			return p
+		if pr.Number == number {
+			return true
 		}
-		out = append(out, pr)
 	}
-	return out
+	return false
 }
