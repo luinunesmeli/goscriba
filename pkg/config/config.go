@@ -15,17 +15,21 @@ const classicToken = "GH_PERSONAL_ACCESS_TOKEN_CLASSIC"
 const finegrainedToken = "GH_PERSONAL_ACCESS_TOKEN_FINEGRAINED"
 const errMsg = "`%s` or `%s` enviroment variable not found! Please refer to README for help."
 
+const logPath = "%s/.tomaster/debug.log"
+
 type Config struct {
 	ClassicToken     string
 	FinegrainedToken string
 	Path             string
 	Base             string
 	Changelog        string
+	HomeDir          string
+	LogPath          string
 	Version          bool
 	Install          bool
 }
 
-func LoadConfig() (Config, error) {
+func LoadConfig(homeDir string) (Config, error) {
 	classic, finegrained, err := getGHTokenEnv()
 	if err != nil {
 		return Config{}, err
@@ -41,6 +45,8 @@ func LoadConfig() (Config, error) {
 		Changelog:        changelog,
 		Install:          install,
 		Version:          version,
+		HomeDir:          homeDir,
+		LogPath:          fmt.Sprintf(logPath, homeDir),
 	}, nil
 }
 
@@ -78,17 +84,17 @@ func (c Config) ReadGitignore() ([]string, error) {
 func loadCliParams() (path, base, changelog string, install, version bool) {
 	dir, _ := os.Getwd()
 	basePath := dir + "/"
-	changelogPath := basePath + "docs/guide/pages/changelog.md"
 
 	flag.BoolVar(&install, "install", false, "automatically install ToMaster on environment")
 	flag.BoolVar(&version, "version", false, "show actual version")
 	flag.StringVar(&path, "path", basePath, "project path you want to generate a release")
 	flag.StringVar(&base, "base", "master", "provide the base: master or main")
-	flag.StringVar(&changelog, "changelog", changelogPath, "provide the changelog filename")
-
+	flag.StringVar(&changelog, "changelog", "docs/guide/pages/changelog.md", "provide the changelog filename")
 	flag.Parse()
 
-	return path, base, changelog, install, version
+	changelogPath := basePath + changelog
+
+	return path, base, changelogPath, install, version
 }
 
 func getGHTokenEnv() (string, string, error) {
