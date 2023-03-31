@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
@@ -19,6 +20,7 @@ import (
 
 func buildGitRepo(cfg config.Config, changelog *tomaster.Changelog) (tomaster.GitRepo, error) {
 	url, err := getRemoteURL(cfg)
+	log.Printf("Remote is `%s`", url)
 	if err != nil {
 		return tomaster.GitRepo{}, err
 	}

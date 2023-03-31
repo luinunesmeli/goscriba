@@ -19,7 +19,8 @@ func Run(cfg config.Config) error {
 
 	owner, repoName := gitRepo.GetRepoInfo()
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	defer cancel()
 
 	githubClient := buildGithubClient(ctx, cfg, owner, repoName)
 
