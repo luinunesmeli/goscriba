@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/google/go-github/v50/github"
@@ -69,8 +70,13 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 			for _, commit := range commits.Commits {
 				pr, _, _ := r.client.PullRequests.ListPullRequestsWithCommit(ctx, r.owner, r.repo, commit.GetSHA(), prOptions)
 				for _, p := range pr {
+					if session.PRs.Exist(p.GetNumber()) {
+						continue
+					}
+
 					prType := getPRType(p.GetHead())
-					if prType == "" {
+					log.Printf("Number: %d Head: %s Type: %s Merged %t", p.GetNumber(), p.GetHead().GetRef(), prType, p.GetMerged())
+					if !p.GetMerged() && prType == "" {
 						continue
 					}
 
