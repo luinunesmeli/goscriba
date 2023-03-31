@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/go-git/go-billy/v5/osfs"
@@ -15,20 +16,26 @@ import (
 const actualVersion = "1.0.0"
 
 func main() {
-	cfg, err := config.LoadConfig()
+	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		handleErr(err)
 	}
 
+	cfg, err := config.LoadConfig(homeDir)
+	if err != nil {
+		handleErr(err)
+	}
+
+	logFile := initLog(cfg.LogPath)
+	defer logFile.Close()
+
 	switch {
 	case cfg.Install:
-		targetDir, err := os.UserHomeDir()
-		if err == nil {
-			path, err := os.Executable()
-			if err == nil {
-				err = install.Run(targetDir, path, osfs.New("/"))
-			}
+		path, err := os.Executable()
+		if err != nil {
+			handleErr(err)
 		}
+		err = install.Run(cfg.HomeDir, path, osfs.New("/"))
 	case cfg.Version:
 		err = version.Run(actualVersion)
 	default:
@@ -45,4 +52,15 @@ func main() {
 func handleErr(err error) {
 	fmt.Println(err)
 	os.Exit(1)
+}
+
+func initLog(filename string) *os.File {
+	logFile, err := os.OpenFile(filename, os.O_APPEND|os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		log.Panic(err)
+	}
+	log.SetOutput(logFile)
+	log.SetFlags(log.Lshortfile | log.LstdFlags)
+
+	return logFile
 }
