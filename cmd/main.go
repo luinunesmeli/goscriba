@@ -51,6 +51,7 @@ func main() {
 
 func handleErr(err error) {
 	fmt.Println(err)
+	log.Println(err)
 	os.Exit(1)
 }
 
