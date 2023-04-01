@@ -9,6 +9,7 @@ import (
 
 	"github.com/luinunesmeli/goscriba/cmd/app"
 	"github.com/luinunesmeli/goscriba/cmd/install"
+	"github.com/luinunesmeli/goscriba/cmd/uninstall"
 	"github.com/luinunesmeli/goscriba/cmd/version"
 	"github.com/luinunesmeli/goscriba/pkg/config"
 )
@@ -26,9 +27,6 @@ func main() {
 		handleErr(err)
 	}
 
-	logFile := initLog(cfg.LogPath)
-	defer logFile.Close()
-
 	switch {
 	case cfg.Install:
 		path, err := os.Executable()
@@ -36,9 +34,14 @@ func main() {
 			handleErr(err)
 		}
 		err = install.Run(cfg.HomeDir, path, osfs.New("/"))
+	case cfg.Uninstall:
+		err = uninstall.Run(cfg.HomeDir, osfs.New("/"))
 	case cfg.Version:
 		err = version.Run(actualVersion)
 	default:
+		logFile := initLog(cfg.LogPath)
+		defer logFile.Close()
+
 		err = app.Run(cfg)
 	}
 

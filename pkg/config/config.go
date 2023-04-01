@@ -31,6 +31,7 @@ type (
 		LogPath          string
 		Version          bool
 		Install          bool
+		Uninstall        bool
 		Repo             Repo
 	}
 
@@ -43,24 +44,28 @@ type (
 )
 
 func LoadConfig(homeDir string) (Config, error) {
-	path, baseBranch, changelog, install, version := loadCliParams()
+	path, baseBranch, changelog, install, uninstall, version := loadCliParams()
 
 	cfg := Config{
 		Path:      path,
 		Base:      baseBranch,
 		Changelog: changelog,
 		Install:   install,
+		Uninstall: uninstall,
 		Version:   version,
 		HomeDir:   homeDir,
 		LogPath:   fmt.Sprintf(logPath, homeDir),
 	}
 
-	cfg, err := getRepoConfig(cfg)
-	if err != nil {
-		return Config{}, err
+	if !install && !uninstall && !version {
+		var err error
+		cfg, err = getRepoConfig(cfg)
+		if err != nil {
+			return Config{}, err
+		}
 	}
 
-	cfg, err = getGHTokenEnv(cfg)
+	cfg, err := getGHTokenEnv(cfg)
 	if err != nil {
 		return Config{}, err
 	}
@@ -99,11 +104,12 @@ func (c Config) ReadGitignore() ([]string, error) {
 	return filtered, scanner.Err()
 }
 
-func loadCliParams() (path, base, changelog string, install, version bool) {
+func loadCliParams() (path, base, changelog string, install, uninstall, version bool) {
 	dir, _ := os.Getwd()
 	basePath := dir + "/"
 
 	flag.BoolVar(&install, "install", false, "automatically install ToMaster on environment")
+	flag.BoolVar(&uninstall, "uninstall", false, "uninstall ToMaster")
 	flag.BoolVar(&version, "version", false, "show actual version")
 	flag.StringVar(&path, "path", basePath, "project path you want to generate a release")
 	flag.StringVar(&base, "base", "master", "provide the base: master or main")
@@ -112,7 +118,7 @@ func loadCliParams() (path, base, changelog string, install, version bool) {
 
 	changelogPath := basePath + changelog
 
-	return path, base, changelogPath, install, version
+	return path, base, changelogPath, install, uninstall, version
 }
 
 func getGHTokenEnv(cfg Config) (Config, error) {
