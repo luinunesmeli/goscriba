@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 
@@ -20,18 +19,12 @@ import (
 )
 
 func buildGitRepo(cfg config.Config, changelog *tomaster.Changelog) (tomaster.GitRepo, error) {
-	url, err := getRemoteURL(cfg)
-	log.Printf("Remote is `%s`", url)
-	if err != nil {
-		return tomaster.GitRepo{}, err
-	}
-
 	storer := memory.NewStorage()
 	fs := memfs.New()
 
 	fmt.Println("Loading repository...")
 	repo, err := git.Clone(storer, fs, &git.CloneOptions{
-		URL:           url,
+		URL:           cfg.Repo.URL,
 		Auth:          auth.AuthMethod(cfg),
 		Progress:      log.Writer(),
 		ReferenceName: plumbing.NewBranchReferenceName("develop"),
@@ -62,19 +55,4 @@ func buildGithubClient(ctx context.Context, cfg config.Config, owner, repo strin
 
 func buildChangelog(cfg config.Config) tomaster.Changelog {
 	return tomaster.NewChangelog(cfg.Changelog)
-}
-
-func getRemoteURL(cfg config.Config) (string, error) {
-	plainRepo, err := git.PlainOpen(cfg.Path)
-	if err != nil {
-		return "", err
-	}
-	repoCfg, err := plainRepo.Config()
-	if err != nil {
-		return "", err
-	}
-	if remotes, ok := repoCfg.Remotes["origin"]; ok && len(remotes.URLs) > 0 {
-		return repoCfg.Remotes["origin"].URLs[0], nil
-	}
-	return "", errors.New("could not load remote URL")
 }
