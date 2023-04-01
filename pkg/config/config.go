@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/go-git/go-git/v5"
+	gitconfig "github.com/go-git/go-git/v5/config"
 )
 
 // https://github.com/settings/tokens
@@ -13,41 +16,56 @@ const classicToken = "GH_PERSONAL_ACCESS_TOKEN_CLASSIC"
 
 // https://github.com/settings/tokens?type=beta
 const finegrainedToken = "GH_PERSONAL_ACCESS_TOKEN_FINEGRAINED"
-const errMsg = "`%s` or `%s` enviroment variable not found! Please refer to README for help."
+const errMsg = "`%s` or `%s` enviroment variable not found! Please refer to README for help"
 
 const logPath = "%s/.tomaster/debug.log"
 
-type Config struct {
-	ClassicToken     string
-	FinegrainedToken string
-	Path             string
-	Base             string
-	Changelog        string
-	HomeDir          string
-	LogPath          string
-	Version          bool
-	Install          bool
-}
+type (
+	Config struct {
+		ClassicToken     string
+		FinegrainedToken string
+		Path             string
+		Base             string
+		Changelog        string
+		HomeDir          string
+		LogPath          string
+		Version          bool
+		Install          bool
+		Repo             Repo
+	}
+
+	Repo struct {
+		URL    string
+		Author string
+		Owner  string
+		Name   string
+	}
+)
 
 func LoadConfig(homeDir string) (Config, error) {
-	classic, finegrained, err := getGHTokenEnv()
+	path, baseBranch, changelog, install, version := loadCliParams()
+
+	cfg := Config{
+		Path:      path,
+		Base:      baseBranch,
+		Changelog: changelog,
+		Install:   install,
+		Version:   version,
+		HomeDir:   homeDir,
+		LogPath:   fmt.Sprintf(logPath, homeDir),
+	}
+
+	cfg, err := getRepoConfig(cfg)
 	if err != nil {
 		return Config{}, err
 	}
 
-	path, baseBranch, changelog, install, version := loadCliParams()
+	cfg, err = getGHTokenEnv(cfg)
+	if err != nil {
+		return Config{}, err
+	}
 
-	return Config{
-		ClassicToken:     classic,
-		FinegrainedToken: finegrained,
-		Path:             path,
-		Base:             baseBranch,
-		Changelog:        changelog,
-		Install:          install,
-		Version:          version,
-		HomeDir:          homeDir,
-		LogPath:          fmt.Sprintf(logPath, homeDir),
-	}, nil
+	return cfg, nil
 }
 
 func (c Config) GetPersonalAccessToken() string {
@@ -97,16 +115,43 @@ func loadCliParams() (path, base, changelog string, install, version bool) {
 	return path, base, changelogPath, install, version
 }
 
-func getGHTokenEnv() (string, string, error) {
-	classic := os.Getenv(classicToken)
-	if classic != "" {
-		return classic, "", nil
+func getGHTokenEnv(cfg Config) (Config, error) {
+	cfg.ClassicToken = os.Getenv(classicToken)
+	if cfg.ClassicToken != "" {
+		return cfg, nil
 	}
 
-	finegrained := os.Getenv(finegrainedToken)
-	if finegrained != "" {
-		return "", finegrained, nil
+	cfg.FinegrainedToken = os.Getenv(finegrainedToken)
+	if cfg.FinegrainedToken != "" {
+		return cfg, nil
 	}
 
-	return "", "", fmt.Errorf(errMsg, classicToken, finegrainedToken)
+	return Config{}, fmt.Errorf(errMsg, classicToken, finegrainedToken)
+}
+
+func getRepoConfig(cfg Config) (Config, error) {
+	plainRepo, err := git.PlainOpen(cfg.Path)
+	if err != nil {
+		return Config{}, err
+	}
+
+	repoCfg, err := plainRepo.Config()
+	if err != nil {
+		return Config{}, err
+	}
+
+	remotes := repoCfg.Remotes["origin"]
+	cfg.Repo.URL = remotes.URLs[0]
+
+	repoConfig, err := plainRepo.ConfigScoped(gitconfig.SystemScope)
+	if err != nil {
+		return Config{}, err
+	}
+	cfg.Repo.Author = repoConfig.User.Name
+
+	parts := strings.Split(remotes.URLs[0], "/")
+	cfg.Repo.Owner = parts[len(parts)-2]
+	cfg.Repo.Name = strings.TrimSuffix(parts[len(parts)-1], ".git")
+
+	return cfg, nil
 }

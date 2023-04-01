@@ -2,7 +2,6 @@ package tomaster
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/go-git/go-git/v5"
 	gitconfig "github.com/go-git/go-git/v5/config"
@@ -71,21 +70,17 @@ func (g *GitRepo) Commit() Task {
 		Desc: "Commit changelog changes...",
 		Help: "Some errors found when commiting changes",
 		Func: func(session Session) (error, string, Session) {
-			repoConfig, err := g.repo.ConfigScoped(gitconfig.SystemScope)
-			if err != nil {
-				return err, "", session
-			}
-
 			localRef := plumbing.NewBranchReferenceName(fmt.Sprintf("release/%s", session.ChosenVersion))
 			if err := g.tree.Checkout(&git.CheckoutOptions{Branch: localRef}); err != nil {
 				return nil, "", session
 			}
 
-			if err, session.Changelog = g.changelog.UpdateChangelog(session, repoConfig.User.Name, g.tree); err != nil {
+			var err error
+			if err, session.Changelog = g.changelog.UpdateChangelog(session, g.cfg.Repo.Author, g.tree); err != nil {
 				return err, "", session
 			}
 
-			if _, err := g.tree.Add(g.cfg.Changelog); err != nil {
+			if _, err = g.tree.Add(g.cfg.Changelog); err != nil {
 				return err, "", session
 			}
 
@@ -112,14 +107,4 @@ func (g *GitRepo) PushReleaseBranch() Task {
 			return err, fmt.Sprintf("Pushed release/%s", session.ChosenVersion), session
 		},
 	}
-}
-
-func (g *GitRepo) GetRepoInfo() (string, string) {
-	c, _ := g.repo.Config()
-	r := c.Remotes
-
-	parts := strings.Split(r["origin"].URLs[0], "/")
-	owner := parts[len(parts)-2]
-	repo := parts[len(parts)-1]
-	return owner, strings.TrimSuffix(repo, ".git")
 }
