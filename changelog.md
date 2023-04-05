@@ -1,11 +1,8 @@
+# Changelog
 
 ## Version 0.0.2
+**Created at 2023-04-05 by @luinunesmeli**
 
-### Features
-	
-* [changes from feature3 PR](https://github.com/luinunesmeli/goscriba/pull/6) by 
-	
-
-
-
+### Enhancements
+* [Remove context timeout, this needs to be addressed properly](https://github.com/luinunesmeli/goscriba/pull/60) by @luinunesmeli
 

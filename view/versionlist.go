@@ -5,6 +5,8 @@ import (
 
 	"github.com/mritd/bubbles/common"
 	"github.com/mritd/bubbles/selector"
+
+	"github.com/luinunesmeli/goscriba/tomaster"
 )
 
 type TypeMessage struct {
@@ -12,12 +14,17 @@ type TypeMessage struct {
 	Version string
 }
 
-func newVersionList() *selector.Model {
+func newVersionList(latestTag string) (*selector.Model, error) {
+	major, minor, patch, err := tomaster.NextReleases(latestTag)
+	if err != nil {
+		return nil, err
+	}
+
 	return &selector.Model{
 		Data: []interface{}{
-			TypeMessage{Type: "Patch", Version: "0.0.2"},
-			TypeMessage{Type: "Minor", Version: "0.1.0"},
-			TypeMessage{Type: "Custom", Version: ""},
+			TypeMessage{Type: "Patch", Version: patch},
+			TypeMessage{Type: "Minor", Version: minor},
+			TypeMessage{Type: "Major", Version: major},
 		},
 		HeaderFunc: selector.DefaultHeaderFuncWithAppend("Select the type of release:"),
 		SelectedFunc: func(m selector.Model, obj interface{}, gdIndex int) string {
@@ -32,10 +39,7 @@ func newVersionList() *selector.Model {
 			return ""
 		},
 		FinishedFunc: func(s interface{}) string {
-			//return ""
-			t := s.(TypeMessage)
-			msg := fmt.Sprintf("🧑‍🔬Selected version: %s(%s)\n", t.Version, t.Type)
-			return common.FontColor(msg, selector.ColorFinished)
+			return ""
 		},
-	}
+	}, nil
 }
