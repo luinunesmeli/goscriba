@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"log"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -10,20 +12,39 @@ import (
 )
 
 func Run(cfg config.Config) error {
-	changelog := buildChangelog(cfg)
+	log.Printf("Remote is `%s`", cfg.Repo.URL)
+	log.Printf("Repository name `%s` with owner `%s`", cfg.Repo.Name, cfg.Repo.Owner)
 
-	gitRepo, err := buildGitRepo(cfg, &changelog)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	defer cancel()
+
+	client := githubClient(ctx, cfg)
+	github := buildGithub(client, cfg, cfg.Repo.Owner, cfg.Repo.Name)
+
+	author, err := github.GetGithubUsername(ctx)
+	if err != nil {
+		return err
+	}
+	cfg.Repo.Author = author
+
+	repo, err := cloneRepository(cfg)
 	if err != nil {
 		return err
 	}
 
-	owner, repoName := gitRepo.GetRepoInfo()
+	tree, err := getWorktree(cfg, repo)
+	if err != nil {
+		return err
+	}
 
-	ctx := context.Background()
+	gitRepo, err := buildGitRepo(repo, tree, cfg)
+	if err != nil {
+		return err
+	}
 
-	githubClient := buildGithubClient(ctx, cfg, owner, repoName)
+	changelog := buildChangelog(cfg, tree)
 
-	p := tea.NewProgram(view.NewView(ctx, &gitRepo, &githubClient, &changelog, cfg))
+	p := tea.NewProgram(view.NewView(ctx, &gitRepo, &github, &changelog, cfg))
 	if _, err = p.Run(); err != nil {
 		return err
 	}

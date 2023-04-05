@@ -8,10 +8,9 @@ type (
 	Func func(Session) (error, string, Session)
 
 	Task struct {
-		Desc     string
-		Help     string
-		Func     Func
-		Rollback Func
+		Desc string
+		Help string
+		Func Func
 	}
 
 	Result struct {
@@ -35,6 +34,8 @@ type (
 		PRs            PRs
 		Changelog      string
 		Author         string
+		PRUrl          string
+		PRNumber       int
 	}
 )
 
@@ -48,9 +49,6 @@ func (t *Manager) Actual() Task {
 
 func (t *Manager) RunActual(session Session) Result {
 	t.actual, t.tasks = t.tasks[0], t.tasks[1:]
-	if t.rollback != nil {
-		t.rollback = append(t.rollback, t.actual.Rollback)
-	}
 	return t.actual.Run(session)
 }
 
@@ -68,13 +66,5 @@ func (t Task) Run(session Session) Result {
 		Ok:      msg,
 		Elapsed: time.Since(now).Seconds(),
 		Session: session,
-	}
-}
-
-func NewSession(chosenVersion string, prs PRs, changelog string) Session {
-	return Session{
-		ChosenVersion: chosenVersion,
-		PRs:           prs,
-		Changelog:     changelog,
 	}
 }

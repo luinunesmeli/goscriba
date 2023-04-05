@@ -2,7 +2,9 @@ package tomaster
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/google/go-github/v50/github"
@@ -68,21 +70,31 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 			for _, commit := range commits.Commits {
 				pr, _, _ := r.client.PullRequests.ListPullRequestsWithCommit(ctx, r.owner, r.repo, commit.GetSHA(), prOptions)
 				for _, p := range pr {
-					prType := getPRType(p.GetHead())
-					if prType == "" {
+					if session.PRs.Exist(p.GetNumber()) {
 						continue
 					}
 
-					session.PRs = session.PRs.Append(PR{
+					prType := getPRType(p.GetHead())
+					log.Printf("Number: %d Head: %s Type: %s Merged %t", p.GetNumber(), p.GetHead().GetRef(), prType, p.GetMerged())
+					if !p.GetMerged() && prType == "" {
+						continue
+					}
+
+					session.PRs = append(session.PRs, PR{
 						PRType: prType,
 						Title:  p.GetTitle(),
 						PRLink: p.GetLinks().GetHTML().GetHRef(),
-						Author: commit.GetAuthor().GetLogin(),
+						Author: authorName(commit),
 						Number: p.GetNumber(),
 						Ref:    p.GetHead().GetRef(),
 					})
 				}
 			}
+
+			if len(session.PRs) == 0 {
+				return errors.New("no closed pull requests on `develop` can be merged on `master`"), "", session
+			}
+
 			return nil, "", session
 		},
 	}
@@ -108,8 +120,31 @@ func (r *GithubClient) CreatePullRequest(ctx context.Context) Task {
 			if err != nil {
 				return err, "", session
 			}
+			session.PRUrl = pr.GetHTMLURL()
+			session.PRNumber = pr.GetNumber()
 
 			return nil, fmt.Sprintf("Access at: %s", pr.GetHTMLURL()), session
 		},
+	}
+}
+
+func (r *GithubClient) GetGithubUsername(ctx context.Context) (string, error) {
+	user, _, err := r.client.Users.Get(ctx, "")
+	if err != nil {
+		return "", err
+	}
+	return user.GetLogin(), nil
+}
+
+func authorName(commit *github.RepositoryCommit) string {
+	switch {
+	case commit.GetAuthor().GetLogin() != "":
+		return commit.GetAuthor().GetLogin()
+	case commit.GetCommitter().GetLogin() != "":
+		return commit.GetCommitter().GetLogin()
+	case commit.GetAuthor().GetLogin() != "":
+		return commit.GetAuthor().GetLogin()
+	default:
+		return commit.GetAuthor().GetEmail()
 	}
 }
