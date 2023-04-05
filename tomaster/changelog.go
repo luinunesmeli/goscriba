@@ -50,11 +50,11 @@ func (c *Changelog) WriteChangelog() Task {
 		Func: func(session Session) (error, string, Session) {
 			t, err := template.New("changelog").Parse(changelogTemplate)
 			if err != nil {
-				return nil, "", Session{}
+				return err, "", Session{}
 			}
 
 			buf := bytes.NewBufferString("")
-			err = t.Execute(buf, newTemplateData(session.ChosenVersion, c.cfg.Repo.Author, session.PRs))
+			err = t.Execute(buf, newTemplateData(session, c.cfg.Repo.Author, session.PRs))
 
 			session.Changelog = buf.String()
 
