@@ -147,15 +147,21 @@ func getRepoConfig(cfg Config) (Config, error) {
 	remotes := repoCfg.Remotes["origin"]
 	cfg.Repo.URL = remotes.URLs[0]
 
-	repoConfig, err := plainRepo.ConfigScoped(gitconfig.SystemScope)
-	if err != nil {
-		return Config{}, err
-	}
-	cfg.Repo.Author = repoConfig.User.Name
-
 	parts := strings.Split(remotes.URLs[0], "/")
 	cfg.Repo.Owner = parts[len(parts)-2]
 	cfg.Repo.Name = strings.TrimSuffix(parts[len(parts)-1], ".git")
 
 	return cfg, nil
+}
+
+func getAuthor(cfg *gitconfig.Config) string {
+	switch {
+	case cfg.User.Email != "":
+		return cfg.User.Email
+	case cfg.Author.Email != "":
+		return cfg.Author.Email
+	case cfg.Committer.Email != "":
+		return cfg.Committer.Email
+	}
+	return ""
 }

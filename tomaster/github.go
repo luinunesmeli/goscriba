@@ -120,19 +120,31 @@ func (r *GithubClient) CreatePullRequest(ctx context.Context) Task {
 			if err != nil {
 				return err, "", session
 			}
+			session.PRUrl = pr.GetHTMLURL()
+			session.PRNumber = pr.GetNumber()
 
 			return nil, fmt.Sprintf("Access at: %s", pr.GetHTMLURL()), session
 		},
 	}
 }
 
+func (r *GithubClient) GetGithubUsername(ctx context.Context) (string, error) {
+	user, _, err := r.client.Users.Get(ctx, "")
+	if err != nil {
+		return "", err
+	}
+	return user.GetLogin(), nil
+}
+
 func authorName(commit *github.RepositoryCommit) string {
 	switch {
-	case commit.GetAuthor().GetName() != "":
-		return commit.GetAuthor().GetName()
-	case commit.GetCommitter().GetName() != "":
-		return commit.GetCommitter().GetName()
+	case commit.GetAuthor().GetLogin() != "":
+		return commit.GetAuthor().GetLogin()
+	case commit.GetCommitter().GetLogin() != "":
+		return commit.GetCommitter().GetLogin()
+	case commit.GetAuthor().GetLogin() != "":
+		return commit.GetAuthor().GetLogin()
 	default:
-		return "@" + commit.GetAuthor().GetLogin()
+		return commit.GetAuthor().GetEmail()
 	}
 }

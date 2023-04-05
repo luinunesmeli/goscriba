@@ -2,6 +2,7 @@ package tomaster
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/go-git/go-git/v5"
 	gitconfig "github.com/go-git/go-git/v5/config"
@@ -89,6 +90,7 @@ func (g *GitRepo) PushReleaseBranch() Task {
 				RefSpecs:   []gitconfig.RefSpec{gitconfig.RefSpec(refSpec)},
 				Auth:       g.authMethod,
 				Force:      true,
+				Progress:   log.Writer(),
 			})
 			return err, fmt.Sprintf("Pushed release/%s", session.ChosenVersion), session
 		},

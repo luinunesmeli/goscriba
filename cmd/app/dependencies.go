@@ -28,13 +28,17 @@ func buildGitRepo(repo *git.Repository, tree *git.Worktree, cfg config.Config) (
 	return gitRepo, nil
 }
 
-func buildGithubClient(ctx context.Context, cfg config.Config, owner, repo string) tomaster.GithubClient {
+func buildGithub(client *github.Client, cfg config.Config, owner, repo string) tomaster.GithubClient {
+	return tomaster.NewGithubClient(client, cfg, owner, repo)
+}
+
+func githubClient(ctx context.Context, cfg config.Config) *github.Client {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: cfg.GetPersonalAccessToken()},
 	)
 	tc := oauth2.NewClient(ctx, ts)
 
-	return tomaster.NewGithubClient(github.NewClient(tc), cfg, owner, repo)
+	return github.NewClient(tc)
 }
 
 func buildChangelog(cfg config.Config, tree *git.Worktree) tomaster.Changelog {
