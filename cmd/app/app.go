@@ -15,12 +15,22 @@ func Run(cfg config.Config) error {
 	log.Printf("Remote is `%s`", cfg.Repo.URL)
 	log.Printf("Repository name `%s` with owner `%s`", cfg.Repo.Name, cfg.Repo.Owner)
 
-	changelog := buildChangelog(cfg)
-
-	gitRepo, err := buildGitRepo(cfg, &changelog)
+	repo, err := cloneRepository(cfg)
 	if err != nil {
 		return err
 	}
+
+	tree, err := getWorktree(cfg, repo)
+	if err != nil {
+		return err
+	}
+
+	gitRepo, err := buildGitRepo(repo, tree, cfg)
+	if err != nil {
+		return err
+	}
+
+	changelog := buildChangelog(cfg, tree)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()

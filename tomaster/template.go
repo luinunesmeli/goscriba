@@ -27,23 +27,23 @@ func newTemplateData(version, author string, prs PRs) templateData {
 
 const changelogTemplate = `## Version {{ .Version }}
 **Created at {{ .Now }} by {{ .Author }}**
-
-
+{{- println ""}}
 {{- if .Features }}
 ### Features
-	{{ range $pr := .Features }}
+	{{- range $pr := .Features }}
 * [{{ $pr.Title }}]({{ $pr.PRLink }}) by {{ $pr.Author }}
-	{{ end }}
+	{{- end }}
 {{- end }}
 {{- if .Enhancements }}
 ### Enhancements
-	{{ range $pr := .Enhancements }}
+	{{- range $pr := .Enhancements }}
 * [{{ $pr.Title }}]({{ $pr.PRLink }}) by {{ $pr.Author }}
-	{{ end }}
+	{{- end }}
 {{- end }}
 {{- if .Fix }}
 ### Fixes
-	{{ range $pr := .Fix }}
+	{{- range $pr := .Fix }}
 * [{{ $pr.Title }}]({{ $pr.PRLink }}) by {{ $pr.Author }}
-	{{ end }}
-{{- end }}`
+	{{- end }}
+{{- end }}
+{{- println ""}}`

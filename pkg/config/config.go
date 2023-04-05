@@ -116,9 +116,7 @@ func loadCliParams() (path, base, changelog string, install, uninstall, version 
 	flag.StringVar(&changelog, "changelog", "docs/guide/pages/changelog.md", "provide the changelog filename")
 	flag.Parse()
 
-	changelogPath := basePath + changelog
-
-	return path, base, changelogPath, install, uninstall, version
+	return path, base, changelog, install, uninstall, version
 }
 
 func getGHTokenEnv(cfg Config) (Config, error) {
