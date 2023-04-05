@@ -6,7 +6,6 @@ import (
 	"github.com/go-git/go-git/v5"
 	gitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/go-git/go-git/v5/plumbing/storer"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 
@@ -18,7 +17,6 @@ type GitRepo struct {
 	tree       *git.Worktree
 	cfg        config.Config
 	authMethod transport.AuthMethod
-	changelog  *Changelog
 }
 
 const (
@@ -27,23 +25,12 @@ const (
 	pushRefSpec = "refs/heads/release/%s:refs/heads/release/%s"
 )
 
-func NewGitRepo(repo *git.Repository, changelog *Changelog, cfg config.Config, authMethod transport.AuthMethod) (GitRepo, error) {
-	tree, err := repo.Worktree()
-	if err != nil {
-		return GitRepo{}, err
-	}
-
-	ignoreList, err := cfg.ReadGitignore()
-	for _, ignore := range ignoreList {
-		tree.Excludes = append(tree.Excludes, gitignore.ParsePattern(ignore, []string{}))
-	}
-
+func NewGitRepo(repo *git.Repository, tree *git.Worktree, cfg config.Config, authMethod transport.AuthMethod) (GitRepo, error) {
 	return GitRepo{
 		repo:       repo,
 		tree:       tree,
 		cfg:        cfg,
 		authMethod: authMethod,
-		changelog:  changelog,
 	}, nil
 }
 
@@ -60,7 +47,16 @@ func (g *GitRepo) CreateRelease() Task {
 			refName := plumbing.ReferenceName(fmt.Sprintf(releaseRef, session.ChosenVersion))
 			ref := plumbing.NewHashReference(refName, headRef.Hash())
 
-			return g.repo.Storer.SetReference(ref), "", session
+			if err = g.repo.Storer.SetReference(ref); err != nil {
+				return err, "", session
+			}
+
+			localRef := plumbing.NewBranchReferenceName(fmt.Sprintf("release/%s", session.ChosenVersion))
+			if err = g.tree.Checkout(&git.CheckoutOptions{Branch: localRef}); err != nil {
+				return nil, "", session
+			}
+
+			return nil, "", session
 		},
 	}
 }
@@ -70,17 +66,7 @@ func (g *GitRepo) Commit() Task {
 		Desc: "Commit changelog changes...",
 		Help: "Some errors found when commiting changes",
 		Func: func(session Session) (error, string, Session) {
-			localRef := plumbing.NewBranchReferenceName(fmt.Sprintf("release/%s", session.ChosenVersion))
-			if err := g.tree.Checkout(&git.CheckoutOptions{Branch: localRef}); err != nil {
-				return nil, "", session
-			}
-
-			var err error
-			if err, session.Changelog = g.changelog.UpdateChangelog(session, g.cfg.Repo.Author, g.tree); err != nil {
-				return err, "", session
-			}
-
-			if _, err = g.tree.Add(g.cfg.Changelog); err != nil {
+			if _, err := g.tree.Add(g.cfg.Changelog); err != nil {
 				return err, "", session
 			}
 
