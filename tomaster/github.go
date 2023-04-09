@@ -10,6 +10,7 @@ import (
 	"github.com/google/go-github/v50/github"
 
 	"github.com/luinunesmeli/goscriba/pkg/config"
+	"github.com/luinunesmeli/goscriba/pkg/datapool"
 )
 
 type GithubClient struct {
@@ -36,7 +37,7 @@ func NewGithubClient(client *github.Client, cfg config.Config, owner, repo strin
 func (r *GithubClient) LoadLatestTag(ctx context.Context) Task {
 	return Task{
 		Desc: "Loading latest tag",
-		Help: "Couldn't get version. Do you have permission to read this repo?",
+		Help: "Couldn't get version. Do you have permissions to read this repo?",
 		Func: func(session Session) (error, string, Session) {
 			rel, resp, err := r.client.Repositories.GetLatestRelease(ctx, r.owner, r.repo)
 			if err != nil {
@@ -56,7 +57,7 @@ func (r *GithubClient) LoadLatestTag(ctx context.Context) Task {
 func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 	return Task{
 		Desc: "Comparing `master` and `develop`",
-		Help: "Couldn't get diff!",
+		Help: "Couldn't resolveq diff!",
 		Func: func(session Session) (error, string, Session) {
 			commits, _, err := r.client.Repositories.CompareCommits(
 				ctx, r.owner, r.repo, r.config.Base, head, &github.ListOptions{},
@@ -65,13 +66,31 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 				return err, "", session
 			}
 
+			cachedCommits := datapool.Pool[string]{}
+			cachedPR := datapool.Pool[int]{}
+
 			session.PRs = PRs{}
 			prOptions := &github.PullRequestListOptions{State: "closed"}
 			for _, commit := range commits.Commits {
+				if cachedCommits.Has(commit.GetSHA()) {
+					log.Println("Hit on commit cache")
+					continue
+				}
+
 				pr, _, _ := r.client.PullRequests.ListPullRequestsWithCommit(ctx, r.owner, r.repo, commit.GetSHA(), prOptions)
 				for _, p := range pr {
-					if session.PRs.Exist(p.GetNumber()) {
+					if cachedPR.Has(p.GetNumber()) {
+						log.Println("PR exists!")
 						continue
+					}
+					cachedPR.Add(p.GetNumber())
+
+					commitsPR, _, _ := r.client.PullRequests.ListCommits(
+						ctx, r.owner, r.repo, p.GetNumber(), &github.ListOptions{},
+					)
+
+					for _, repositoryCommit := range commitsPR {
+						cachedCommits.Add(repositoryCommit.GetSHA())
 					}
 
 					prType := getPRType(p.GetHead())

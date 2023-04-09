@@ -61,12 +61,3 @@ func (p PRs) AsMap() map[PRType]PRs {
 	}
 	return out
 }
-
-func (p PRs) Exist(number int) bool {
-	for _, pr := range p {
-		if pr.Number == number {
-			return true
-		}
-	}
-	return false
-}
