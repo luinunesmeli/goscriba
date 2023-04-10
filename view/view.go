@@ -39,6 +39,7 @@ func NewView(ctx context.Context, gitrepo *tomaster.GitRepo, github *tomaster.Gi
 		v.form.Show(),
 		v.form.GetSelectedVersion(),
 		v.gitrepo.CreateRelease(),
+		v.changelog.WriteChangelog(),
 		v.gitrepo.Commit(),
 		v.gitrepo.PushReleaseBranch(),
 		v.github.CreatePullRequest(ctx),

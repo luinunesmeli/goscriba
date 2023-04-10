@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/go-git/go-git/v5"
+	gitconfig "github.com/go-git/go-git/v5/config"
 )
 
 // https://github.com/settings/tokens
@@ -13,44 +16,61 @@ const classicToken = "GH_PERSONAL_ACCESS_TOKEN_CLASSIC"
 
 // https://github.com/settings/tokens?type=beta
 const finegrainedToken = "GH_PERSONAL_ACCESS_TOKEN_FINEGRAINED"
-const errMsg = "`%s` or `%s` enviroment variable not found! Please refer to README for help."
+const errMsg = "`%s` or `%s` enviroment variable not found! Please refer to README for help"
 
-type Config struct {
-	ClassicToken     string
-	FinegrainedToken string
-	Path             string
-	Base             string
-	Changelog        string
-	Gitignore        []string
-	Version          bool
-	AutoPR           bool
-	Autoinstall      bool
-}
+const logPath = "%s/.tomaster/debug.log"
 
-func LoadConfig() (Config, error) {
-	classic, finegrained, err := getGHTokenEnv()
+type (
+	Config struct {
+		ClassicToken     string
+		FinegrainedToken string
+		Path             string
+		Base             string
+		Changelog        string
+		HomeDir          string
+		LogPath          string
+		Version          bool
+		Install          bool
+		Uninstall        bool
+		Repo             Repo
+	}
+
+	Repo struct {
+		URL    string
+		Author string
+		Owner  string
+		Name   string
+	}
+)
+
+func LoadConfig(homeDir string) (Config, error) {
+	path, baseBranch, changelog, install, uninstall, version := loadCliParams()
+
+	cfg := Config{
+		Path:      path,
+		Base:      baseBranch,
+		Changelog: changelog,
+		Install:   install,
+		Uninstall: uninstall,
+		Version:   version,
+		HomeDir:   homeDir,
+		LogPath:   fmt.Sprintf(logPath, homeDir),
+	}
+
+	if !install && !uninstall && !version {
+		var err error
+		cfg, err = getRepoConfig(cfg)
+		if err != nil {
+			return Config{}, err
+		}
+	}
+
+	cfg, err := getGHTokenEnv(cfg)
 	if err != nil {
 		return Config{}, err
 	}
 
-	path, baseBranch, changelog, pr, auto, version := loadCliParams()
-
-	content, err := readGitignore(path)
-	if err != nil {
-		return Config{}, err
-	}
-
-	return Config{
-		ClassicToken:     classic,
-		FinegrainedToken: finegrained,
-		Path:             path,
-		Base:             baseBranch,
-		Changelog:        changelog,
-		AutoPR:           pr,
-		Autoinstall:      auto,
-		Version:          version,
-		Gitignore:        content,
-	}, nil
+	return cfg, nil
 }
 
 func (c Config) GetPersonalAccessToken() string {
@@ -60,35 +80,8 @@ func (c Config) GetPersonalAccessToken() string {
 	return c.ClassicToken
 }
 
-func loadCliParams() (path, base, changelog string, pr, auto, version bool) {
-	flag.BoolVar(&pr, "autopr", true, "automatically generate Pull Request (optional)")
-	flag.BoolVar(&auto, "install", false, "automatically install ToMaster on environment")
-	flag.BoolVar(&version, "version", false, "show actual version")
-	flag.StringVar(&path, "path", "./", "project path you want to generate a release")
-	flag.StringVar(&base, "base", "master", "provide the base: master or main")
-	flag.StringVar(&changelog, "changelog", path+"docs/guide/pages/changelog.md", "provide the changelog filename")
-
-	flag.Parse()
-
-	return path, base, changelog, pr, auto, version
-}
-
-func getGHTokenEnv() (string, string, error) {
-	classic := os.Getenv(classicToken)
-	if classic != "" {
-		return classic, "", nil
-	}
-
-	finegrained := os.Getenv(finegrainedToken)
-	if finegrained != "" {
-		return "", finegrained, nil
-	}
-
-	return "", "", fmt.Errorf(errMsg, classicToken, finegrainedToken)
-}
-
-func readGitignore(path string) ([]string, error) {
-	file, err := os.Open(path + "/.gitignore")
+func (c Config) ReadGitignore() ([]string, error) {
+	file, err := os.Open(c.Path + "/.gitignore")
 	if err != nil {
 		return nil, err
 	}
@@ -109,4 +102,66 @@ func readGitignore(path string) ([]string, error) {
 	}
 
 	return filtered, scanner.Err()
+}
+
+func loadCliParams() (path, base, changelog string, install, uninstall, version bool) {
+	dir, _ := os.Getwd()
+	basePath := dir + "/"
+
+	flag.BoolVar(&install, "install", false, "automatically install ToMaster on environment")
+	flag.BoolVar(&uninstall, "uninstall", false, "uninstall ToMaster")
+	flag.BoolVar(&version, "version", false, "show actual version")
+	flag.StringVar(&path, "path", basePath, "project path you want to generate a release")
+	flag.StringVar(&base, "base", "master", "provide the base: master or main")
+	flag.StringVar(&changelog, "changelog", "docs/guide/pages/changelog.md", "provide the changelog filename")
+	flag.Parse()
+
+	return path, base, changelog, install, uninstall, version
+}
+
+func getGHTokenEnv(cfg Config) (Config, error) {
+	cfg.ClassicToken = os.Getenv(classicToken)
+	if cfg.ClassicToken != "" {
+		return cfg, nil
+	}
+
+	cfg.FinegrainedToken = os.Getenv(finegrainedToken)
+	if cfg.FinegrainedToken != "" {
+		return cfg, nil
+	}
+
+	return Config{}, fmt.Errorf(errMsg, classicToken, finegrainedToken)
+}
+
+func getRepoConfig(cfg Config) (Config, error) {
+	plainRepo, err := git.PlainOpen(cfg.Path)
+	if err != nil {
+		return Config{}, err
+	}
+
+	repoCfg, err := plainRepo.Config()
+	if err != nil {
+		return Config{}, err
+	}
+
+	remotes := repoCfg.Remotes["origin"]
+	cfg.Repo.URL = remotes.URLs[0]
+
+	parts := strings.Split(remotes.URLs[0], "/")
+	cfg.Repo.Owner = parts[len(parts)-2]
+	cfg.Repo.Name = strings.TrimSuffix(parts[len(parts)-1], ".git")
+
+	return cfg, nil
+}
+
+func getAuthor(cfg *gitconfig.Config) string {
+	switch {
+	case cfg.User.Email != "":
+		return cfg.User.Email
+	case cfg.Author.Email != "":
+		return cfg.Author.Email
+	case cfg.Committer.Email != "":
+		return cfg.Committer.Email
+	}
+	return ""
 }

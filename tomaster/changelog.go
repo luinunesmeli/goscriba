@@ -9,12 +9,14 @@ import (
 	"text/template"
 
 	"github.com/go-git/go-git/v5"
+
+	"github.com/luinunesmeli/goscriba/pkg/config"
 )
 
 type (
 	Changelog struct {
-		filename string
-		content  []string
+		tree *git.Worktree
+		cfg  config.Config
 	}
 )
 
@@ -22,63 +24,59 @@ const (
 	tempPath = "temp-file.txt"
 )
 
-func NewChangelog(filename string) Changelog {
+func NewChangelog(cfg config.Config, tree *git.Worktree) Changelog {
 	return Changelog{
-		filename: filename,
+		tree: tree,
+		cfg:  cfg,
 	}
 }
 
 func (c *Changelog) LoadChangelog() Task {
 	return Task{
-		Desc: "Load actual changelog",
-		Help: fmt.Sprintf("Not found! Changelog should exist at %s.", c.filename),
+		Desc: "Verify actual changelog",
+		Help: fmt.Sprintf("Not found! Changelog should exist at %s.", c.cfg.Changelog),
 		Func: func(session Session) (error, string, Session) {
-			file, err := os.Open(c.filename)
-			if err != nil {
-				return err, "", session
-			}
+			file, err := os.Open(c.cfg.Changelog)
 			defer file.Close()
-
-			scanner := bufio.NewScanner(file)
-			for scanner.Scan() {
-				c.content = append(c.content, scanner.Text())
-			}
-			return scanner.Err(), "", session
+			return err, "", session
 		},
 	}
 }
 
-func (c *Changelog) UpdateChangelog(session Session, author string, tree *git.Worktree) (error, string) {
-	t, err := template.New("changelog").Parse(changelogTemplate)
-	if err != nil {
-		return err, ""
+func (c *Changelog) WriteChangelog() Task {
+	return Task{
+		Desc: "Update changelog",
+		Help: fmt.Sprintf("Not found! Changelog should exist at %s.", c.cfg.Changelog),
+		Func: func(session Session) (error, string, Session) {
+			t, err := template.New("changelog").Parse(changelogTemplate)
+			if err != nil {
+				return err, "", Session{}
+			}
+
+			buf := bytes.NewBufferString("")
+			err = t.Execute(buf, newTemplateData(session, c.cfg.Repo.Author, session.PRs))
+
+			session.Changelog = buf.String()
+
+			return writeChangelogContent(c.cfg.Changelog, buf.String(), c.tree), "", session
+		},
 	}
-
-	buf := bytes.NewBufferString("")
-	err = t.Execute(buf, newTemplateData(session.ChosenVersion, author, session.PRs))
-
-	return writeChangelogContent(c.filename, buf.String(), tree), buf.String()
 }
 
 func writeChangelogContent(path string, content string, tree *git.Worktree) error {
-	// temporary file
 	temp, err := tree.Filesystem.Create(tempPath)
 	if err != nil {
 		return err
 	}
 	defer temp.Close()
 
-	// existing changelog file
-	file, err := os.Open(path)
+	file, err := tree.Filesystem.Open(path)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	if _, err = temp.Write([]byte(content)); err != nil {
-		return err
-	}
-	if _, err = temp.Write([]byte("\n")); err != nil {
+	if _, err = temp.Write([]byte(fmt.Sprintf("# Changelog\n\n%s\n", content))); err != nil {
 		return err
 	}
 
@@ -88,10 +86,7 @@ func writeChangelogContent(path string, content string, tree *git.Worktree) erro
 		if match, _ := regexp.Match("#.Changelog", []byte(text)); match {
 			continue
 		}
-		if _, err = temp.Write([]byte(text)); err != nil {
-			return err
-		}
-		if _, err = temp.Write([]byte("\n")); err != nil {
+		if _, err = temp.Write([]byte(text + "\n")); err != nil {
 			return err
 		}
 	}
