@@ -36,6 +36,8 @@ func getPRType(branch *github.PullRequestBranch) PRType {
 		return Enhancement
 	case strings.HasPrefix(branch.GetRef(), string(Fix)):
 		return Fix
+	case strings.HasPrefix(branch.GetRef(), string(Bugfix)):
+		return Bugfix
 	default:
 		return ""
 	}

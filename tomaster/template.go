@@ -8,11 +8,10 @@ type templateData struct {
 	Version      string
 	Now          string
 	Author       string
-	PRNumber     int
-	PRURL        string
 	Features     PRs
-	Fix          PRs
+	Fixes        PRs
 	Enhancements PRs
+	Bugfixes     PRs
 }
 
 func newTemplateData(session Session, author string, prs PRs) templateData {
@@ -22,14 +21,13 @@ func newTemplateData(session Session, author string, prs PRs) templateData {
 		Now:          data.Format("2006-01-02"),
 		Author:       author,
 		Features:     prs.Filter(Feature),
-		Fix:          prs.Filter(Fix),
+		Fixes:        prs.Filter(Fix),
 		Enhancements: prs.Filter(Enhancement),
-		PRNumber:     session.PRNumber,
-		PRURL:        session.PRUrl,
+		Bugfixes:     prs.Filter(Bugfix),
 	}
 }
 
-const changelogTemplate = `## Version {{ .Version }}
+const ChangelogTemplate = `## Version {{ .Version }}
 **Created at {{ .Now }} by @{{ .Author }}**
 {{- println ""}}
 {{- if .Features }}
@@ -44,7 +42,7 @@ const changelogTemplate = `## Version {{ .Version }}
 * [{{ $pr.Title }}]({{ $pr.PRLink }}) by @{{ $pr.Author }}
 	{{- end }}
 {{- end }}
-{{- if .Fix }}
+{{- if .Fixes }}
 ### Fixes
 	{{- range $pr := .Fix }}
 * [{{ $pr.Title }}]({{ $pr.PRLink }}) by @{{ $pr.Author }}
