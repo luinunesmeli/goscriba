@@ -1,5 +1,15 @@
 # Changelog
 
+Custom PR comments
+## Version 0.0.3
+
+### Enhancements
+* [Enhancement/more fixes](https://github.com/luinunesmeli/goscriba/pull/87) by @luinunesmeli
+### Fixes
+* [Fix/better performance](https://github.com/luinunesmeli/goscriba/pull/94) by @luinunesmeli
+
+
+
 ## Version 0.0.2
 **Created at 2023-04-05 by @luinunesmeli**
 
