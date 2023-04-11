@@ -8,6 +8,7 @@ import (
 	"github.com/go-git/go-billy/v5/osfs"
 
 	"github.com/luinunesmeli/goscriba/cmd/app"
+	"github.com/luinunesmeli/goscriba/cmd/generatetemplate"
 	"github.com/luinunesmeli/goscriba/cmd/install"
 	"github.com/luinunesmeli/goscriba/cmd/uninstall"
 	"github.com/luinunesmeli/goscriba/cmd/version"
@@ -38,6 +39,8 @@ func main() {
 		err = uninstall.Run(cfg.HomeDir, osfs.New("/"))
 	case cfg.Version:
 		err = version.Run(actualVersion)
+	case cfg.GenerateTemplate:
+		err = generatetemplate.Run(osfs.New("./"))
 	default:
 		logFile := initLog(cfg.LogPath)
 		defer logFile.Close()
