@@ -44,7 +44,13 @@ const ChangelogTemplate = `## Version {{ .Version }}
 {{- end }}
 {{- if .Fixes }}
 ### Fixes
-	{{- range $pr := .Fix }}
+	{{- range $pr := .Fixes }}
+* [{{ $pr.Title }}]({{ $pr.PRLink }}) by @{{ $pr.Author }}
+	{{- end }}
+{{- end }}
+{{- if .Bugfixes }}
+### Fixes
+	{{- range $pr := .Bugfixes }}
 * [{{ $pr.Title }}]({{ $pr.PRLink }}) by @{{ $pr.Author }}
 	{{- end }}
 {{- end }}
