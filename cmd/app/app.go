@@ -8,7 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/luinunesmeli/goscriba/pkg/config"
-	"github.com/luinunesmeli/goscriba/view"
+	"github.com/luinunesmeli/goscriba/ui"
 )
 
 func Run(cfg config.Config) error {
@@ -44,7 +44,7 @@ func Run(cfg config.Config) error {
 
 	changelog := buildChangelog(cfg, tree)
 
-	p := tea.NewProgram(view.NewView(ctx, &gitRepo, &github, &changelog, cfg))
+	p := tea.NewProgram(ui.NewView(ctx, &gitRepo, &github, &changelog, cfg))
 	if _, err = p.Run(); err != nil {
 		return err
 	}
