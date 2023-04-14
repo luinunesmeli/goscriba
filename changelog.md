@@ -1,5 +1,9 @@
 # Changelog
 
+## Version 0.0.4
+
+### Fixes
+
 ## Version 0.0.2
 **Created at 2023-04-05 by @luinunesmeli**
 
