@@ -163,9 +163,18 @@ func getRepoConfig(cfg Config) (Config, error) {
 	remotes := repoCfg.Remotes["origin"]
 	cfg.Repo.URL = remotes.URLs[0]
 
-	parts := strings.Split(remotes.URLs[0], "/")
-	cfg.Repo.Owner = parts[len(parts)-2]
-	cfg.Repo.Name = strings.TrimSuffix(parts[len(parts)-1], ".git")
+	if strings.HasPrefix(cfg.Repo.URL, "git@") {
+		parts := strings.Split(cfg.Repo.URL, "/")
+		ownerParts := strings.Split(parts[0], ":")
+
+		cfg.Repo.Owner = ownerParts[len(ownerParts)-1]
+		cfg.Repo.Name = strings.TrimSuffix(parts[1], ".git")
+		cfg.Repo.URL = fmt.Sprintf("https://github.com/%s/%s.git", cfg.Repo.Owner, cfg.Repo.Name)
+	} else {
+		parts := strings.Split(cfg.Repo.URL, "/")
+		cfg.Repo.Owner = parts[len(parts)-2]
+		cfg.Repo.Name = strings.TrimSuffix(parts[len(parts)-1], ".git")
+	}
 
 	return cfg, nil
 }
