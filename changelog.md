@@ -1,5 +1,12 @@
 # Changelog
 
+## Version 0.1.0
+**Created at 2023-04-19 by @luinunesmeli**
+
+### Fixes
+* [Allow custom template](https://github.com/luinunesmeli/goscriba/pull/98) by @luinunesmeli
+
+
 ## Version 0.0.2
 **Created at 2023-04-05 by @luinunesmeli**
 
