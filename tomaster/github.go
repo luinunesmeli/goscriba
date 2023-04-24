@@ -57,7 +57,7 @@ func (r *GithubClient) LoadLatestTag(ctx context.Context) Task {
 func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 	return Task{
 		Desc: "Comparing `master` and `develop`",
-		Help: "Couldn't resolveq diff!",
+		Help: "Couldn't resolve diff!",
 		Func: func(session Session) (error, string, Session) {
 			commits, _, err := r.client.Repositories.CompareCommits(
 				ctx, r.owner, r.repo, r.config.Base, head, &github.ListOptions{},
@@ -73,14 +73,12 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 			prOptions := &github.PullRequestListOptions{State: "closed"}
 			for _, commit := range commits.Commits {
 				if cachedCommits.Has(commit.GetSHA()) {
-					log.Println("Hit on commit cache")
 					continue
 				}
 
 				pr, _, _ := r.client.PullRequests.ListPullRequestsWithCommit(ctx, r.owner, r.repo, commit.GetSHA(), prOptions)
 				for _, p := range pr {
 					if cachedPR.Has(p.GetNumber()) {
-						log.Println("PR exists!")
 						continue
 					}
 					cachedPR.Add(p.GetNumber())
