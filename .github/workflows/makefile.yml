@@ -15,7 +15,7 @@ jobs:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0 # get all tags, needed to get git log
-        ref: main
+        ref: develop
 
     - name: Install dependencies
       run: make build
@@ -23,6 +23,5 @@ jobs:
     - uses: ncipollo/release-action@v1
       with:
         name: ${{ env.GITHUB_REF_NAME }}
-        tag: ${{ env.GITHUB_REF_NAME }}
         artifacts: "bin/tomaster"
         token: ${{ secrets.GITHUB_TOKEN }}
