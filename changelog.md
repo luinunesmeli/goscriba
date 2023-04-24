@@ -1,5 +1,11 @@
 # Changelog
 
+## Version 0.0.4
+
+### Fixes
+* [Allow custom template](https://github.com/luinunesmeli/goscriba/pull/98) by Luiz Nunes
+
+
 ## Version 0.0.3
 **Created at 2023-04-10 by @luinunesmeli**
 
