@@ -1,6 +1,12 @@
 # Changelog
 
 ## Version 0.0.4
+
+### Enhancements
+* [Better author fetch](https://github.com/luinunesmeli/goscriba/pull/122) by Luiz Nunes
+
+
+## Version 0.0.4
 ### Fixes
 * [Allow custom template](https://github.com/luinunesmeli/goscriba/pull/98) by Luiz Nunes
 
