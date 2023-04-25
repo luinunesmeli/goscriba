@@ -39,7 +39,7 @@ type (
 
 	Repo struct {
 		URL    string
-		Author string
+		Author Author
 		Owner  string
 		Name   string
 	}
@@ -47,6 +47,12 @@ type (
 	Template struct {
 		Path           string `yaml:"path"`
 		CustomTemplate string
+	}
+
+	Author struct {
+		Name  string
+		Email string
+		Login string
 	}
 )
 

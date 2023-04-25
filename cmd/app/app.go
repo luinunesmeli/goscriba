@@ -25,7 +25,11 @@ func Run(cfg config.Config) error {
 	if err != nil {
 		return err
 	}
-	cfg.Repo.Author = author
+	cfg.Repo.Author = config.Author{
+		Name:  author.Name,
+		Email: author.Email,
+		Login: author.Login,
+	}
 
 	repo, err := cloneRepository(cfg)
 	if err != nil {
