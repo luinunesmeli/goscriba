@@ -58,8 +58,14 @@ func (c *Changelog) WriteChangelog() Task {
 				return err, "", Session{}
 			}
 
+			author := Author{
+				Login: c.cfg.Repo.Author.Login,
+				Name:  c.cfg.Repo.Author.Name,
+				Email: c.cfg.Repo.Author.Email,
+			}
+
 			buf := bytes.NewBufferString("")
-			err = t.Execute(buf, newTemplateData(session, c.cfg.Repo.Author, session.PRs))
+			err = t.Execute(buf, newTemplateData(session, author, session.PRs))
 
 			session.Changelog = buf.String()
 

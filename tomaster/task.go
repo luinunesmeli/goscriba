@@ -33,7 +33,6 @@ type (
 		LastestVersion string
 		PRs            PRs
 		Changelog      string
-		Author         string
 		PRUrl          string
 		PRNumber       int
 	}

@@ -14,10 +14,16 @@ type (
 	PR struct {
 		PRType PRType
 		Title  string
-		PRLink string
-		Author string
+		Link   string
+		Author Author
 		Number int
 		Ref    string
+	}
+
+	Author struct {
+		Login string
+		Name  string
+		Email string
 	}
 )
 

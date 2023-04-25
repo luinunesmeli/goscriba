@@ -14,10 +14,11 @@ import (
 )
 
 type GithubClient struct {
-	client *github.Client
-	config config.Config
-	owner  string
-	repo   string
+	client  *github.Client
+	config  config.Config
+	owner   string
+	repo    string
+	authors datapool.Pool[string, Author]
 }
 
 const (
@@ -27,10 +28,11 @@ const (
 
 func NewGithubClient(client *github.Client, cfg config.Config, owner, repo string) GithubClient {
 	return GithubClient{
-		client: client,
-		owner:  owner,
-		repo:   repo,
-		config: cfg,
+		client:  client,
+		owner:   owner,
+		repo:    repo,
+		config:  cfg,
+		authors: datapool.NewPool[string, Author](),
 	}
 }
 
@@ -66,8 +68,8 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 				return err, "", session
 			}
 
-			cachedCommits := datapool.Pool[string]{}
-			cachedPR := datapool.Pool[int]{}
+			cachedCommits := datapool.NewPool[string, string]()
+			cachedPR := datapool.NewPool[int, int]()
 
 			session.PRs = PRs{}
 			prOptions := &github.PullRequestListOptions{State: "closed"}
@@ -81,14 +83,14 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 					if cachedPR.Has(p.GetNumber()) {
 						continue
 					}
-					cachedPR.Add(p.GetNumber())
+					cachedPR.Add(p.GetNumber(), p.GetNumber())
 
 					commitsPR, _, _ := r.client.PullRequests.ListCommits(
 						ctx, r.owner, r.repo, p.GetNumber(), &github.ListOptions{},
 					)
 
 					for _, repositoryCommit := range commitsPR {
-						cachedCommits.Add(repositoryCommit.GetSHA())
+						cachedCommits.Add(repositoryCommit.GetSHA(), repositoryCommit.GetSHA())
 					}
 
 					prType := getPRType(p.GetHead())
@@ -97,11 +99,16 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 						continue
 					}
 
+					author, err := r.getAuthor(ctx, p.User.GetLogin())
+					if err != nil {
+						return err, "", session
+					}
+
 					session.PRs = append(session.PRs, PR{
 						PRType: prType,
 						Title:  p.GetTitle(),
-						PRLink: p.GetLinks().GetHTML().GetHRef(),
-						Author: authorName(commit),
+						Link:   p.GetLinks().GetHTML().GetHRef(),
+						Author: author,
 						Number: p.GetNumber(),
 						Ref:    p.GetHead().GetRef(),
 					})
@@ -145,23 +152,25 @@ func (r *GithubClient) CreatePullRequest(ctx context.Context) Task {
 	}
 }
 
-func (r *GithubClient) GetGithubUsername(ctx context.Context) (string, error) {
-	user, _, err := r.client.Users.Get(ctx, "")
-	if err != nil {
-		return "", err
-	}
-	return user.GetLogin(), nil
+func (r *GithubClient) GetGithubUsername(ctx context.Context) (Author, error) {
+	return r.getAuthor(ctx, "")
 }
 
-func authorName(commit *github.RepositoryCommit) string {
-	switch {
-	case commit.GetAuthor().GetLogin() != "":
-		return commit.GetAuthor().GetLogin()
-	case commit.GetCommitter().GetLogin() != "":
-		return commit.GetCommitter().GetLogin()
-	case commit.GetAuthor().GetLogin() != "":
-		return commit.GetAuthor().GetLogin()
-	default:
-		return commit.GetAuthor().GetEmail()
+func (r *GithubClient) getAuthor(ctx context.Context, login string) (Author, error) {
+	if val, ok := r.authors.Get(login); ok {
+		return val, nil
 	}
+
+	prUser, _, err := r.client.Users.Get(ctx, login)
+	if err != nil {
+		return Author{}, err
+	}
+	author := Author{
+		Login: prUser.GetLogin(),
+		Name:  prUser.GetName(),
+		Email: prUser.GetEmail(),
+	}
+	r.authors.Add(author.Login, author)
+
+	return author, nil
 }
