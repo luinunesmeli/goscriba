@@ -7,14 +7,14 @@ import (
 type templateData struct {
 	Version      string
 	Now          string
-	Author       string
+	Author       Author
 	Features     PRs
 	Fixes        PRs
 	Enhancements PRs
 	Bugfixes     PRs
 }
 
-func newTemplateData(session Session, author string, prs PRs) templateData {
+func newTemplateData(session Session, author Author, prs PRs) templateData {
 	data := time.Now()
 	return templateData{
 		Version:      session.ChosenVersion,
@@ -28,30 +28,29 @@ func newTemplateData(session Session, author string, prs PRs) templateData {
 }
 
 const ChangelogTemplate = `## Version {{ .Version }}
-**Created at {{ .Now }} by @{{ .Author }}**
 {{- println ""}}
 {{- if .Features }}
 ### Features
 	{{- range $pr := .Features }}
-* [{{ $pr.Title }}]({{ $pr.PRLink }}) by @{{ $pr.Author }}
+* [{{ $pr.Title }}]({{ $pr.Link }}) by {{ $pr.Author.Name }}
 	{{- end }}
 {{- end }}
 {{- if .Enhancements }}
 ### Enhancements
 	{{- range $pr := .Enhancements }}
-* [{{ $pr.Title }}]({{ $pr.PRLink }}) by @{{ $pr.Author }}
+* [{{ $pr.Title }}]({{ $pr.Link }}) by {{ $pr.Author.Name }}
 	{{- end }}
 {{- end }}
 {{- if .Fixes }}
 ### Fixes
 	{{- range $pr := .Fixes }}
-* [{{ $pr.Title }}]({{ $pr.PRLink }}) by @{{ $pr.Author }}
+* [{{ $pr.Title }}]({{ $pr.Link }}) by {{ $pr.Author.Name }}
 	{{- end }}
 {{- end }}
 {{- if .Bugfixes }}
 ### Fixes
 	{{- range $pr := .Bugfixes }}
-* [{{ $pr.Title }}]({{ $pr.PRLink }}) by @{{ $pr.Author }}
+* [{{ $pr.Title }}]({{ $pr.Link }}) by {{ $pr.Author.Name }}
 	{{- end }}
 {{- end }}
 {{- println ""}}`
