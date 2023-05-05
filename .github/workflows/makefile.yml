@@ -1,0 +1,27 @@
+name: Makefile CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "develop" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0 # get all tags, needed to get git log
+        ref: develop
+
+    - name: Install dependencies
+      run: make build
+
+    - uses: ncipollo/release-action@v1
+      with:
+        name: ${{ env.GITHUB_REF_NAME }}
+        artifacts: "bin/tomaster"
+        token: ${{ secrets.GITHUB_TOKEN }}
