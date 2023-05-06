@@ -14,11 +14,12 @@ import (
 )
 
 type GithubClient struct {
-	client  *github.Client
-	config  config.Config
-	owner   string
-	repo    string
-	authors datapool.Pool[string, Author]
+	client   *github.Client
+	config   config.Config
+	owner    string
+	repo     string
+	authors  datapool.Pool[string, Author]
+	prAuthor Author
 }
 
 const (
@@ -130,20 +131,24 @@ func (r *GithubClient) CreatePullRequest(ctx context.Context) Task {
 		Help: "Couldn't generate the Pull Request!",
 		Func: func(session Session) (error, string, Session) {
 			title := fmt.Sprintf("Release version %s", session.ChosenVersion)
-			base := r.config.Base
 			head := fmt.Sprintf("release/%s", session.ChosenVersion)
-			changelog := session.Changelog
 
 			newPR := &github.NewPullRequest{
 				Title: &title,
 				Head:  &head,
-				Base:  &base,
-				Body:  &changelog,
+				Base:  &r.config.Base,
+				Body:  &session.Changelog,
 			}
+
 			pr, _, err := r.client.PullRequests.Create(ctx, r.owner, r.repo, newPR)
 			if err != nil {
-				return err, "", session
+				return err, "", Session{}
 			}
+			_, _, err = r.client.Issues.AddAssignees(ctx, r.owner, r.repo, pr.GetNumber(), []string{r.prAuthor.Login})
+			if err != nil {
+				return err, "", Session{}
+			}
+
 			session.PRUrl = pr.GetHTMLURL()
 			session.PRNumber = pr.GetNumber()
 
@@ -153,7 +158,9 @@ func (r *GithubClient) CreatePullRequest(ctx context.Context) Task {
 }
 
 func (r *GithubClient) GetGithubUsername(ctx context.Context) (Author, error) {
-	return r.getAuthor(ctx, "")
+	author, err := r.getAuthor(ctx, "")
+	r.prAuthor = author
+	return author, err
 }
 
 func (r *GithubClient) getAuthor(ctx context.Context, login string) (Author, error) {
