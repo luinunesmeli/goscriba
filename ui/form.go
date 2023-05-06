@@ -91,7 +91,7 @@ func (f *form) View() string {
 		for prType, prs := range f.prs.AsMap() {
 			output += fmt.Sprintf("\n%s\n", strings.ToUpper(string(prType)))
 			for _, pr := range prs {
-				output += fmt.Sprintf(" * [#%d %s] %s by %s\n", pr.Number, pr.Ref, pr.Title, pr.Author)
+				output += fmt.Sprintf(" * [#%d %s] %s by %s\n", pr.Number, pr.Ref, pr.Title, pr.Author.Name)
 			}
 			output += "\n"
 		}
