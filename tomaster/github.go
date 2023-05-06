@@ -25,6 +25,7 @@ type GithubClient struct {
 const (
 	head           = "develop"
 	initialRelease = "0.0.0"
+	closedState    = "closed"
 )
 
 func NewGithubClient(client *github.Client, cfg config.Config, owner, repo string) GithubClient {
@@ -73,7 +74,7 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 			cachedPR := datapool.NewPool[int, int]()
 
 			session.PRs = PRs{}
-			prOptions := &github.PullRequestListOptions{State: "closed"}
+			prOptions := &github.PullRequestListOptions{}
 			for _, commit := range commits.Commits {
 				if cachedCommits.Has(commit.GetSHA()) {
 					continue
@@ -85,6 +86,10 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 						continue
 					}
 					cachedPR.Add(p.GetNumber(), p.GetNumber())
+
+					if p.GetState() != closedState {
+						continue
+					}
 
 					commitsPR, _, _ := r.client.PullRequests.ListCommits(
 						ctx, r.owner, r.repo, p.GetNumber(), &github.ListOptions{},
