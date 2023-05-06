@@ -3,6 +3,13 @@
 ## Version 0.0.4
 
 ### Enhancements
+* [Assign PR to the creator](https://github.com/luinunesmeli/goscriba/pull/125) by Luiz Nunes
+
+
+
+## Version 0.0.4
+
+### Enhancements
 * [Better author fetch](https://github.com/luinunesmeli/goscriba/pull/122) by Luiz Nunes
 
 
