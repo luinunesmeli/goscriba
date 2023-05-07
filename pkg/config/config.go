@@ -12,14 +12,18 @@ import (
 	"github.com/go-git/go-git/v5"
 )
 
-// https://github.com/settings/tokens
-const classicToken = "GH_PERSONAL_ACCESS_TOKEN_CLASSIC"
+const (
+	// https://github.com/settings/tokens
+	classicToken = "GH_PERSONAL_ACCESS_TOKEN_CLASSIC"
 
-// https://github.com/settings/tokens?type=beta
-const finegrainedToken = "GH_PERSONAL_ACCESS_TOKEN_FINEGRAINED"
-const errMsg = "`%s` or `%s` enviroment variable not found! Please refer to README for help"
+	// https://github.com/settings/tokens?type=beta
+	finegrainedToken = "GH_PERSONAL_ACCESS_TOKEN_FINEGRAINED"
+	errMsg           = "`%s` or `%s` enviroment variable not found! Please refer to README for help"
 
-const logPath = "%s/.tomaster/debug.log"
+	logPath = "%s/.tomaster/debug.log"
+
+	releaseLabel = "release"
+)
 
 type (
 	Config struct {
@@ -29,12 +33,8 @@ type (
 		Base             string
 		HomeDir          string
 		LogPath          string
-		GenerateTemplate bool
-		Version          bool
-		Install          bool
-		Uninstall        bool
 		Repo             Repo
-		Template         Template
+		Changelog        Changelog `yaml:"changelog"`
 	}
 
 	Repo struct {
@@ -44,8 +44,9 @@ type (
 		Name   string
 	}
 
-	Template struct {
+	Changelog struct {
 		Path           string `yaml:"path"`
+		ReleaseLabel   string `yaml:"release_label"`
 		CustomTemplate string
 	}
 
@@ -57,36 +58,31 @@ type (
 )
 
 func LoadConfig(homeDir string) (Config, error) {
-	path, baseBranch, changelog, install, uninstall, version, generate := loadCliParams()
+	path, baseBranch, changelog := loadConfigParams()
 
 	cfg := Config{
-		Path:             path,
-		Base:             baseBranch,
-		Install:          install,
-		Uninstall:        uninstall,
-		Version:          version,
-		HomeDir:          homeDir,
-		LogPath:          fmt.Sprintf(logPath, homeDir),
-		GenerateTemplate: generate,
-		Template: Template{
-			Path: changelog,
+		Path:    path,
+		Base:    baseBranch,
+		HomeDir: homeDir,
+		LogPath: fmt.Sprintf(logPath, homeDir),
+		Changelog: Changelog{
+			Path:         changelog,
+			ReleaseLabel: releaseLabel,
 		},
 	}
 
-	if !install && !uninstall && !version {
-		var err error
-		cfg, err = getRepoConfig(cfg)
-		if err != nil {
-			return Config{}, err
-		}
-	}
-
-	cfg, err := getGHTokenEnv(cfg)
+	var err error
+	cfg, err = getRepoConfig(cfg)
 	if err != nil {
 		return Config{}, err
 	}
 
-	cfg, err = getChangelogTemplate(cfg)
+	cfg, err = getGHTokenEnv(cfg)
+	if err != nil {
+		return Config{}, err
+	}
+
+	cfg, err = getOptionsFromFile(cfg)
 	if err != nil {
 		return Config{}, err
 	}
@@ -125,20 +121,16 @@ func (c Config) ReadGitignore() ([]string, error) {
 	return filtered, scanner.Err()
 }
 
-func loadCliParams() (path, base, changelog string, install, uninstall, version, generate bool) {
+func loadConfigParams() (path, base, changelog string) {
 	dir, _ := os.Getwd()
 	basePath := dir + "/"
 
-	flag.BoolVar(&install, "install", false, "automatically install ToMaster on environment")
-	flag.BoolVar(&uninstall, "uninstall", false, "uninstall ToMaster")
-	flag.BoolVar(&version, "version", false, "show actual version")
-	flag.BoolVar(&generate, "generate", false, "generate config template")
 	flag.StringVar(&path, "path", basePath, "project path you want to generate a release")
 	flag.StringVar(&base, "base", "master", "provide the base: master or main")
 	flag.StringVar(&changelog, "changelog", "docs/guide/pages/changelog.md", "provide the changelog filename")
 	flag.Parse()
 
-	return path, base, changelog, install, uninstall, version, generate
+	return path, base, changelog
 }
 
 func getGHTokenEnv(cfg Config) (Config, error) {
@@ -185,7 +177,7 @@ func getRepoConfig(cfg Config) (Config, error) {
 	return cfg, nil
 }
 
-func getChangelogTemplate(cfg Config) (Config, error) {
+func getOptionsFromFile(cfg Config) (Config, error) {
 	fs := osfs.New("./")
 
 	f, err := fs.Open(".tomaster")
@@ -197,9 +189,9 @@ func getChangelogTemplate(cfg Config) (Config, error) {
 	}
 	defer f.Close()
 
-	rest, err := frontmatter.Parse(f, &cfg.Template)
+	rest, err := frontmatter.Parse(f, &cfg)
 	if len(rest) > 0 {
-		cfg.Template.CustomTemplate = string(rest)
+		cfg.Changelog.CustomTemplate = string(rest)
 	}
 	return cfg, nil
 }

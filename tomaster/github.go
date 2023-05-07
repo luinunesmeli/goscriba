@@ -149,13 +149,16 @@ func (r *GithubClient) CreatePullRequest(ctx context.Context) Task {
 			if err != nil {
 				return err, "", Session{}
 			}
-			_, _, err = r.client.Issues.AddAssignees(ctx, r.owner, r.repo, pr.GetNumber(), []string{r.prAuthor.Login})
-			if err != nil {
-				return err, "", Session{}
-			}
 
 			session.PRUrl = pr.GetHTMLURL()
 			session.PRNumber = pr.GetNumber()
+
+			if _, _, err = r.client.Issues.AddAssignees(ctx, r.owner, r.repo, pr.GetNumber(), []string{r.prAuthor.Login}); err != nil {
+				return nil, "could not add assignee to Pull Request", session
+			}
+			if _, _, err = r.client.Issues.AddLabelsToIssue(ctx, r.owner, r.repo, pr.GetNumber(), []string{r.config.Changelog.ReleaseLabel}); err != nil {
+				return nil, "could not add label to Pull Request", session
+			}
 
 			return nil, fmt.Sprintf("Access at: %s", pr.GetHTMLURL()), session
 		},
