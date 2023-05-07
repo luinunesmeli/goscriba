@@ -3,6 +3,16 @@
 ## Version 0.0.4
 
 ### Enhancements
+* [Assign PR to the creator](https://github.com/luinunesmeli/goscriba/pull/125) by Luiz Nunes
+* [Enhancement/remove open prs](https://github.com/luinunesmeli/goscriba/pull/127) by Luiz Nunes
+### Fixes
+* [Fix author name on preview](https://github.com/luinunesmeli/goscriba/pull/129) by Luiz Nunes
+
+
+
+## Version 0.0.4
+
+### Enhancements
 * [Better author fetch](https://github.com/luinunesmeli/goscriba/pull/122) by Luiz Nunes
 
 
