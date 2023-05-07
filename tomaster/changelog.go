@@ -34,9 +34,9 @@ func NewChangelog(cfg config.Config, tree *git.Worktree) Changelog {
 func (c *Changelog) LoadChangelog() Task {
 	return Task{
 		Desc: "Verify actual changelog",
-		Help: fmt.Sprintf("Not found! Changelog should exist at %s.", c.cfg.Template.Path),
+		Help: fmt.Sprintf("Not found! Changelog should exist at %s.", c.cfg.Changelog.Path),
 		Func: func(session Session) (error, string, Session) {
-			file, err := os.Open(c.cfg.Template.Path)
+			file, err := os.Open(c.cfg.Changelog.Path)
 			defer file.Close()
 			return err, "", session
 		},
@@ -46,11 +46,11 @@ func (c *Changelog) LoadChangelog() Task {
 func (c *Changelog) WriteChangelog() Task {
 	return Task{
 		Desc: "Update changelog",
-		Help: fmt.Sprintf("Not found! Changelog should exist at %s.", c.cfg.Template.Path),
+		Help: fmt.Sprintf("Not found! Changelog should exist at %s.", c.cfg.Changelog.Path),
 		Func: func(session Session) (error, string, Session) {
 			tpl := ChangelogTemplate
-			if c.cfg.Template.CustomTemplate != "" {
-				tpl = c.cfg.Template.CustomTemplate
+			if c.cfg.Changelog.CustomTemplate != "" {
+				tpl = c.cfg.Changelog.CustomTemplate
 			}
 
 			t, err := template.New("changelog").Parse(tpl)
@@ -69,7 +69,7 @@ func (c *Changelog) WriteChangelog() Task {
 
 			session.Changelog = buf.String()
 
-			return writeChangelogContent(c.cfg.Template.Path, buf.String(), c.tree), "", session
+			return writeChangelogContent(c.cfg.Changelog.Path, buf.String(), c.tree), "", session
 		},
 	}
 }

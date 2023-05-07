@@ -67,7 +67,7 @@ func (g *GitRepo) Commit() Task {
 		Desc: "Commit changelog changes...",
 		Help: "Some errors found when commiting changes",
 		Func: func(session Session) (error, string, Session) {
-			if _, err := g.tree.Add(g.cfg.Template.Path); err != nil {
+			if _, err := g.tree.Add(g.cfg.Changelog.Path); err != nil {
 				return err, "", session
 			}
 

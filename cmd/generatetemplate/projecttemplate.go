@@ -9,7 +9,9 @@ import (
 )
 
 const projectTemplate = `---
-path: changelog.md
+changelog:
+    path: changelog.md
+    release_label: release
 ---
 %s`
 
