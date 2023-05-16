@@ -3,6 +3,7 @@ package tomaster
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"regexp"
@@ -35,7 +36,7 @@ func (c *Changelog) LoadChangelog() Task {
 	return Task{
 		Desc: "Verify actual changelog",
 		Help: fmt.Sprintf("Not found! Changelog should exist at %s.", c.cfg.Changelog.Path),
-		Func: func(session Session) (error, string, Session) {
+		Func: func(ctx context.Context, session Session) (error, string, Session) {
 			file, err := os.Open(c.cfg.Changelog.Path)
 			defer file.Close()
 			return err, "", session
@@ -47,7 +48,7 @@ func (c *Changelog) WriteChangelog() Task {
 	return Task{
 		Desc: "Update changelog",
 		Help: fmt.Sprintf("Not found! Changelog should exist at %s.", c.cfg.Changelog.Path),
-		Func: func(session Session) (error, string, Session) {
+		Func: func(ctx context.Context, session Session) (error, string, Session) {
 			tpl := ChangelogTemplate
 			if c.cfg.Changelog.CustomTemplate != "" {
 				tpl = c.cfg.Changelog.CustomTemplate

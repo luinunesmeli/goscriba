@@ -2,6 +2,7 @@ package ui
 
 import (
 	"context"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -22,7 +23,11 @@ type (
 	}
 )
 
-func NewView(ctx context.Context, gitrepo *tomaster.GitRepo, github *tomaster.GithubClient, changelog *tomaster.Changelog, config config.Config) View {
+const (
+	ctxTimeout = time.Second * 30
+)
+
+func NewView(gitrepo *tomaster.GitRepo, github *tomaster.GithubClient, changelog *tomaster.Changelog, config config.Config) View {
 	v := View{
 		gitrepo:        gitrepo,
 		github:         github,
@@ -34,15 +39,15 @@ func NewView(ctx context.Context, gitrepo *tomaster.GitRepo, github *tomaster.Gi
 
 	steps := []tomaster.Task{
 		v.changelog.LoadChangelog(),
-		v.github.LoadLatestTag(ctx),
-		v.github.DiffBaseHead(ctx),
+		v.github.LoadLatestTag(),
+		v.github.DiffBaseHead(),
 		v.form.Show(),
 		v.form.GetSelectedVersion(),
 		v.gitrepo.CreateRelease(),
 		v.changelog.WriteChangelog(),
 		v.gitrepo.Commit(),
 		v.gitrepo.PushReleaseBranch(),
-		v.github.CreatePullRequest(ctx),
+		v.github.CreatePullRequest(),
 	}
 
 	v.manager = tomaster.NewManager(steps...)
@@ -66,7 +71,10 @@ func (m View) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stepResultList, _ = m.stepResultList.Update(startStepMsg{step: m.manager.Actual()})
 			return m, newStateMsg(executeStep)
 		case executeStep:
-			result := m.manager.RunActual(m.session)
+			ctx, cancel := context.WithTimeout(context.Background(), ctxTimeout)
+			defer cancel()
+
+			result := m.manager.RunActual(ctx, m.session)
 			m.session = result.Session
 
 			m.stepResultList, cmd = m.stepResultList.Update(executeStepMsg{result: result})

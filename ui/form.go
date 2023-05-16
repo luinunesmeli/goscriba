@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -105,7 +106,7 @@ func (f *form) Show() tomaster.Task {
 	return tomaster.Task{
 		Desc: "Select your version",
 		Help: "Show form",
-		Func: func(session tomaster.Session) (error, string, tomaster.Session) {
+		Func: func(ctx context.Context, session tomaster.Session) (error, string, tomaster.Session) {
 			f.show = true
 			f.latestTag = session.LastestVersion
 			f.prs = session.PRs
@@ -126,7 +127,7 @@ func (f *form) GetSelectedVersion() tomaster.Task {
 	return tomaster.Task{
 		Desc: "A new version number was selected!",
 		Help: "Version is empty!",
-		Func: func(session tomaster.Session) (error, string, tomaster.Session) {
+		Func: func(ctx context.Context, session tomaster.Session) (error, string, tomaster.Session) {
 			session.ChosenVersion = f.chosenTag
 			return nil, "", session
 		},
