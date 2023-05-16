@@ -1,6 +1,7 @@
 package tomaster
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -39,7 +40,7 @@ func (g *GitRepo) CreateRelease() Task {
 	return Task{
 		Desc: "Create release...",
 		Help: "Couldn't create release!",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(_ context.Context, session Session) (error, string, Session) {
 			headRef, err := storer.ResolveReference(g.repo.Storer, developRef)
 			if err != nil {
 				return nil, "", session
@@ -66,7 +67,7 @@ func (g *GitRepo) Commit() Task {
 	return Task{
 		Desc: "Commit changelog changes...",
 		Help: "Some errors found when commiting changes",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(_ context.Context, session Session) (error, string, Session) {
 			if _, err := g.tree.Add(g.cfg.Changelog.Path); err != nil {
 				return err, "", session
 			}
@@ -83,9 +84,9 @@ func (g *GitRepo) PushReleaseBranch() Task {
 	return Task{
 		Desc: "Push release to remote",
 		Help: "Couldn't push release to remote!",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(ctx context.Context, session Session) (error, string, Session) {
 			refSpec := fmt.Sprintf(pushRefSpec, session.ChosenVersion, session.ChosenVersion)
-			err := g.repo.Push(&git.PushOptions{
+			err := g.repo.PushContext(ctx, &git.PushOptions{
 				RemoteName: "origin",
 				RefSpecs:   []gitconfig.RefSpec{gitconfig.RefSpec(refSpec)},
 				Auth:       g.authMethod,

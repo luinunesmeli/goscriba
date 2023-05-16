@@ -1,16 +1,17 @@
 package tomaster
 
 import (
+	"context"
 	"time"
 )
 
 type (
-	Func func(Session) (error, string, Session)
+	TaskFunc func(context.Context, Session) (error, string, Session)
 
 	Task struct {
 		Desc string
 		Help string
-		Func Func
+		Func TaskFunc
 	}
 
 	Result struct {
@@ -25,7 +26,7 @@ type (
 	Manager struct {
 		tasks    []Task
 		actual   Task
-		rollback []Func
+		rollback []TaskFunc
 	}
 
 	Session struct {
@@ -46,18 +47,18 @@ func (t *Manager) Actual() Task {
 	return t.tasks[0]
 }
 
-func (t *Manager) RunActual(session Session) Result {
+func (t *Manager) RunActual(ctx context.Context, session Session) Result {
 	t.actual, t.tasks = t.tasks[0], t.tasks[1:]
-	return t.actual.Run(session)
+	return t.actual.Run(ctx, session)
 }
 
 func (t *Manager) Empty() bool {
 	return len(t.tasks) == 0
 }
 
-func (t Task) Run(session Session) Result {
+func (t Task) Run(ctx context.Context, session Session) Result {
 	now := time.Now()
-	err, msg, session := t.Func(session)
+	err, msg, session := t.Func(ctx, session)
 	return Result{
 		Desc:    t.Desc,
 		Help:    t.Help,

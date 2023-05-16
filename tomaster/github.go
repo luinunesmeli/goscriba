@@ -38,11 +38,11 @@ func NewGithubClient(client *github.Client, cfg config.Config, owner, repo strin
 	}
 }
 
-func (r *GithubClient) LoadLatestTag(ctx context.Context) Task {
+func (r *GithubClient) LoadLatestTag() Task {
 	return Task{
 		Desc: "Loading latest tag",
 		Help: "Couldn't get version. Do you have permissions to read this repo?",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(ctx context.Context, session Session) (error, string, Session) {
 			rel, resp, err := r.client.Repositories.GetLatestRelease(ctx, r.owner, r.repo)
 			if err != nil {
 				if resp != nil && resp.StatusCode == http.StatusNotFound {
@@ -58,11 +58,11 @@ func (r *GithubClient) LoadLatestTag(ctx context.Context) Task {
 	}
 }
 
-func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
+func (r *GithubClient) DiffBaseHead() Task {
 	return Task{
 		Desc: "Comparing `master` and `develop`",
 		Help: "Couldn't resolve diff!",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(ctx context.Context, session Session) (error, string, Session) {
 			commits, _, err := r.client.Repositories.CompareCommits(
 				ctx, r.owner, r.repo, r.config.Base, head, &github.ListOptions{},
 			)
@@ -130,11 +130,11 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 	}
 }
 
-func (r *GithubClient) CreatePullRequest(ctx context.Context) Task {
+func (r *GithubClient) CreatePullRequest() Task {
 	return Task{
 		Desc: "Generating the Pull Request for you.",
 		Help: "Couldn't generate the Pull Request!",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(ctx context.Context, session Session) (error, string, Session) {
 			title := fmt.Sprintf("Release version %s", session.ChosenVersion)
 			head := fmt.Sprintf("release/%s", session.ChosenVersion)
 

@@ -15,7 +15,7 @@ func Run(cfg config.Config) error {
 	log.Printf("Remote is `%s`", cfg.Repo.URL)
 	log.Printf("Repository name `%s` with owner `%s`", cfg.Repo.Name, cfg.Repo.Owner)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
 	client := githubClient(ctx, cfg)
@@ -31,7 +31,7 @@ func Run(cfg config.Config) error {
 		Login: author.Login,
 	}
 
-	repo, err := cloneRepository(cfg)
+	repo, err := cloneRepository(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func Run(cfg config.Config) error {
 
 	changelog := buildChangelog(cfg, tree)
 
-	p := tea.NewProgram(ui.NewView(ctx, &gitRepo, &github, &changelog, cfg))
+	p := tea.NewProgram(ui.NewView(&gitRepo, &github, &changelog, cfg))
 	if _, err = p.Run(); err != nil {
 		return err
 	}
