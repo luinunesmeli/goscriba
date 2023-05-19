@@ -59,13 +59,13 @@ func getWorktree(cfg config.Config, repo *git.Repository) (*git.Worktree, error)
 	return tree, err
 }
 
-func cloneRepository(cfg config.Config) (*git.Repository, error) {
+func cloneRepository(ctx context.Context, cfg config.Config) (*git.Repository, error) {
 	storer := memory.NewStorage()
 	fs := memfs.New()
 
 	fmt.Println("Loading repository...")
 
-	return git.Clone(storer, fs, &git.CloneOptions{
+	return git.CloneContext(ctx, storer, fs, &git.CloneOptions{
 		URL:           cfg.Repo.URL,
 		Auth:          auth.AuthMethod(cfg),
 		ReferenceName: plumbing.NewBranchReferenceName("develop"),

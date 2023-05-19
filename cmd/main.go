@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -15,7 +16,9 @@ import (
 	"github.com/luinunesmeli/goscriba/pkg/config"
 )
 
-const actualVersion = "1.0.0"
+const (
+	actualVersion = "1.0.0"
+)
 
 func main() {
 	homeDir, err := os.UserHomeDir()
@@ -23,23 +26,25 @@ func main() {
 		handleErr(err)
 	}
 
-	cfg, err := config.LoadConfig(homeDir)
+	installOpt, uninstallOpt, versionOpt, generateOpt, path, base, changelog := parseCommandOptions()
+
+	cfg, err := config.LoadConfig(homeDir, path, base, changelog)
 	if err != nil {
 		handleErr(err)
 	}
 
 	switch {
-	case cfg.Install:
+	case installOpt:
 		path, err := os.Executable()
 		if err != nil {
 			handleErr(err)
 		}
 		err = install.Run(cfg.HomeDir, path, osfs.New("/"))
-	case cfg.Uninstall:
+	case uninstallOpt:
 		err = uninstall.Run(cfg.HomeDir, osfs.New("/"))
-	case cfg.Version:
+	case versionOpt:
 		err = version.Run(actualVersion)
-	case cfg.GenerateTemplate:
+	case generateOpt:
 		err = generatetemplate.Run(osfs.New("./"))
 	default:
 		logFile := initLog(cfg.LogPath)
@@ -70,4 +75,21 @@ func initLog(filename string) *os.File {
 	log.SetFlags(log.Lshortfile | log.LstdFlags)
 
 	return logFile
+}
+
+func parseCommandOptions() (install, uninstall, version, generate bool, path, base, changelog string) {
+	dir, _ := os.Getwd()
+	basePath := dir + "/"
+
+	flag.BoolVar(&install, "install", false, "automatically install ToMaster on environment")
+	flag.BoolVar(&uninstall, "uninstall", false, "uninstall ToMaster")
+	flag.BoolVar(&version, "version", false, "show actual version")
+	flag.BoolVar(&generate, "generate", false, "generate config template")
+	flag.StringVar(&path, "path", basePath, "project path you want to generate a release")
+	flag.StringVar(&base, "base", "master", "provide the base: master or main")
+	flag.StringVar(&changelog, "changelog", "docs/guide/pages/changelog.md", "provide the changelog filename")
+
+	flag.Parse()
+
+	return install, uninstall, version, generate, path, base, changelog
 }

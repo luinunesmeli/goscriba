@@ -14,16 +14,18 @@ import (
 )
 
 type GithubClient struct {
-	client  *github.Client
-	config  config.Config
-	owner   string
-	repo    string
-	authors datapool.Pool[string, Author]
+	client   *github.Client
+	config   config.Config
+	owner    string
+	repo     string
+	authors  datapool.Pool[string, Author]
+	prAuthor Author
 }
 
 const (
 	head           = "develop"
 	initialRelease = "0.0.0"
+	closedState    = "closed"
 )
 
 func NewGithubClient(client *github.Client, cfg config.Config, owner, repo string) GithubClient {
@@ -36,11 +38,11 @@ func NewGithubClient(client *github.Client, cfg config.Config, owner, repo strin
 	}
 }
 
-func (r *GithubClient) LoadLatestTag(ctx context.Context) Task {
+func (r *GithubClient) LoadLatestTag() Task {
 	return Task{
 		Desc: "Loading latest tag",
 		Help: "Couldn't get version. Do you have permissions to read this repo?",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(ctx context.Context, session Session) (error, string, Session) {
 			rel, resp, err := r.client.Repositories.GetLatestRelease(ctx, r.owner, r.repo)
 			if err != nil {
 				if resp != nil && resp.StatusCode == http.StatusNotFound {
@@ -56,11 +58,11 @@ func (r *GithubClient) LoadLatestTag(ctx context.Context) Task {
 	}
 }
 
-func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
+func (r *GithubClient) DiffBaseHead() Task {
 	return Task{
 		Desc: "Comparing `master` and `develop`",
 		Help: "Couldn't resolve diff!",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(ctx context.Context, session Session) (error, string, Session) {
 			commits, _, err := r.client.Repositories.CompareCommits(
 				ctx, r.owner, r.repo, r.config.Base, head, &github.ListOptions{},
 			)
@@ -72,7 +74,7 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 			cachedPR := datapool.NewPool[int, int]()
 
 			session.PRs = PRs{}
-			prOptions := &github.PullRequestListOptions{State: "closed"}
+			prOptions := &github.PullRequestListOptions{}
 			for _, commit := range commits.Commits {
 				if cachedCommits.Has(commit.GetSHA()) {
 					continue
@@ -84,6 +86,10 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 						continue
 					}
 					cachedPR.Add(p.GetNumber(), p.GetNumber())
+
+					if p.GetState() != closedState {
+						continue
+					}
 
 					commitsPR, _, _ := r.client.PullRequests.ListCommits(
 						ctx, r.owner, r.repo, p.GetNumber(), &github.ListOptions{},
@@ -124,28 +130,35 @@ func (r *GithubClient) DiffBaseHead(ctx context.Context) Task {
 	}
 }
 
-func (r *GithubClient) CreatePullRequest(ctx context.Context) Task {
+func (r *GithubClient) CreatePullRequest() Task {
 	return Task{
 		Desc: "Generating the Pull Request for you.",
 		Help: "Couldn't generate the Pull Request!",
-		Func: func(session Session) (error, string, Session) {
+		Func: func(ctx context.Context, session Session) (error, string, Session) {
 			title := fmt.Sprintf("Release version %s", session.ChosenVersion)
-			base := r.config.Base
 			head := fmt.Sprintf("release/%s", session.ChosenVersion)
-			changelog := session.Changelog
 
 			newPR := &github.NewPullRequest{
 				Title: &title,
 				Head:  &head,
-				Base:  &base,
-				Body:  &changelog,
+				Base:  &r.config.Base,
+				Body:  &session.Changelog,
 			}
+
 			pr, _, err := r.client.PullRequests.Create(ctx, r.owner, r.repo, newPR)
 			if err != nil {
-				return err, "", session
+				return err, "", Session{}
 			}
+
 			session.PRUrl = pr.GetHTMLURL()
 			session.PRNumber = pr.GetNumber()
+
+			if _, _, err = r.client.Issues.AddAssignees(ctx, r.owner, r.repo, pr.GetNumber(), []string{r.prAuthor.Login}); err != nil {
+				return nil, "could not add assignee to Pull Request", session
+			}
+			if _, _, err = r.client.Issues.AddLabelsToIssue(ctx, r.owner, r.repo, pr.GetNumber(), []string{r.config.Changelog.ReleaseLabel}); err != nil {
+				return nil, "could not add label to Pull Request", session
+			}
 
 			return nil, fmt.Sprintf("Access at: %s", pr.GetHTMLURL()), session
 		},
@@ -153,7 +166,9 @@ func (r *GithubClient) CreatePullRequest(ctx context.Context) Task {
 }
 
 func (r *GithubClient) GetGithubUsername(ctx context.Context) (Author, error) {
-	return r.getAuthor(ctx, "")
+	author, err := r.getAuthor(ctx, "")
+	r.prAuthor = author
+	return author, err
 }
 
 func (r *GithubClient) getAuthor(ctx context.Context, login string) (Author, error) {
