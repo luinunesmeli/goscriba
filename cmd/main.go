@@ -26,12 +26,12 @@ func main() {
 		handleErr(err)
 	}
 
-	cfg, err := config.LoadConfig(homeDir)
+	installOpt, uninstallOpt, versionOpt, generateOpt, path, base, changelog := parseCommandOptions()
+
+	cfg, err := config.LoadConfig(homeDir, path, base, changelog)
 	if err != nil {
 		handleErr(err)
 	}
-
-	installOpt, uninstallOpt, versionOpt, generateOpt := parseCommandOptions()
 
 	switch {
 	case installOpt:
@@ -77,12 +77,19 @@ func initLog(filename string) *os.File {
 	return logFile
 }
 
-func parseCommandOptions() (install, uninstall, version, generate bool) {
+func parseCommandOptions() (install, uninstall, version, generate bool, path, base, changelog string) {
+	dir, _ := os.Getwd()
+	basePath := dir + "/"
+
 	flag.BoolVar(&install, "install", false, "automatically install ToMaster on environment")
 	flag.BoolVar(&uninstall, "uninstall", false, "uninstall ToMaster")
 	flag.BoolVar(&version, "version", false, "show actual version")
 	flag.BoolVar(&generate, "generate", false, "generate config template")
+	flag.StringVar(&path, "path", basePath, "project path you want to generate a release")
+	flag.StringVar(&base, "base", "master", "provide the base: master or main")
+	flag.StringVar(&changelog, "changelog", "docs/guide/pages/changelog.md", "provide the changelog filename")
+
 	flag.Parse()
 
-	return install, uninstall, version, generate
+	return install, uninstall, version, generate, path, base, changelog
 }

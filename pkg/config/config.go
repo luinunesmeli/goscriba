@@ -2,7 +2,6 @@ package config
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -57,12 +56,10 @@ type (
 	}
 )
 
-func LoadConfig(homeDir string) (Config, error) {
-	path, baseBranch, changelog := loadConfigParams()
-
+func LoadConfig(homeDir, path, base, changelog string) (Config, error) {
 	cfg := Config{
 		Path:    path,
-		Base:    baseBranch,
+		Base:    base,
 		HomeDir: homeDir,
 		LogPath: fmt.Sprintf(logPath, homeDir),
 		Changelog: Changelog{
@@ -119,18 +116,6 @@ func (c Config) ReadGitignore() ([]string, error) {
 	}
 
 	return filtered, scanner.Err()
-}
-
-func loadConfigParams() (path, base, changelog string) {
-	dir, _ := os.Getwd()
-	basePath := dir + "/"
-
-	flag.StringVar(&path, "path", basePath, "project path you want to generate a release")
-	flag.StringVar(&base, "base", "master", "provide the base: master or main")
-	flag.StringVar(&changelog, "changelog", "docs/guide/pages/changelog.md", "provide the changelog filename")
-	flag.Parse()
-
-	return path, base, changelog
 }
 
 func getGHTokenEnv(cfg Config) (Config, error) {
